@@ -100,7 +100,7 @@ export const PARTENAIRES = [
   { name: 'BLUEN Clean Energy', img: `${P}waLk6t88n6PeGXnavC4Yn0f0SMYXnsJD5SoTaL6z.png` },
   { name: 'JCEMGROUP Togo', img: `${P}4OLfg9gc10ydHBZAkOVJISYjm5thJRj9rTMbM8Eb.png` },
   { name: 'PGS' }, { name: 'PLS' }, { name: 'Bourseria' },
-  { name: 'TRFS', img: `${P}dODsSFXk1X5UwheQigggUCYuNZ1A8cMWWIMH1bxh.bmp` },
+  { name: 'TRFS', img: `${P}trfs.png` },
   { name: 'BIDC (EBID)' }, { name: 'BOAD' }, { name: 'AFREXIM BANK' }, { name: 'CORIS Capital' }, { name: 'BMCE Capital' },
   { name: 'ONUD (UNIDO)' }, { name: 'CITAC' }, { name: 'IMC' }, { name: 'Profiles International' }, { name: 'GIDB' },
   { name: 'Ingénieurs sans frontières' }, { name: 'RITES' }, { name: 'Cabinet Gainsbury & Consorts' },
