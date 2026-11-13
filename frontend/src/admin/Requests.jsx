@@ -4,6 +4,7 @@ import { Download, Eye, Inbox, Mail, MailOpen, Plus, Reply, Save, Shield, Trash2
 import { SearchField, norm } from '../components/ui';
 import { Field } from '../components/forms';
 import { useAuth } from '../lib/auth';
+import { BASE } from '../lib/api';
 import { Confirm, Drawer, fmtDate, fmtDateTime, useAdminApi, useAdminList, useToast } from './kit';
 
 const SUJETS = { recrutement: 'Recrutement', formation: 'Formation', 'conseil & audit': 'Conseil & Audit', partenariat: 'Partenariat', 'ppp / infrastructure': 'PPP / Infrastructure', autre: 'Autre' };
@@ -124,7 +125,7 @@ export function CandidaturesAdmin() {
   // Téléchargement authentifié du CV / de la lettre
   const download = async (c, kind) => {
     try {
-      const res = await fetch(`/api/admin/candidatures/${c.id}/fichier/${kind}`, { headers: { Authorization: `Bearer ${token}` } });
+      const res = await fetch(`${BASE}/api/admin/candidatures/${c.id}/fichier/${kind}`, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error();
       const blob = await res.blob();
       const name = /filename="?([^"]+)"?/.exec(res.headers.get('Content-Disposition') || '')?.[1] || `${kind}-${c.nom}`;

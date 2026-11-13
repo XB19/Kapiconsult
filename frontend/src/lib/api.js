@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 
-const BASE = import.meta.env.VITE_API_URL || '';
+export const BASE = import.meta.env.VITE_API_URL || '';
 
 export async function api(path, { method = 'GET', body, token } = {}) {
   const headers = {};
