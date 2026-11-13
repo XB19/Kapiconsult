@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { ArrowRight, CheckCircle2, FileText, MapPin } from 'lucide-react';
 import { Cta, Frieze, PageBanner, Reveal, SecTitle, Title } from '../components/ui';
@@ -30,13 +30,20 @@ function Domaines() {
     const t = setTimeout(() => document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: 'smooth' }), 150);
     return () => clearTimeout(t);
   }, [hash]);
+  // Sur mobile, la barre des domaines défile horizontalement : on garde l'onglet actif visible
+  const navRef = useRef(null);
+  useEffect(() => {
+    const nav = navRef.current; const a = nav?.querySelector('.is-active');
+    if (!nav || !a || nav.scrollWidth <= nav.clientWidth) return;
+    nav.scrollTo({ left: a.offsetLeft - (nav.clientWidth - a.offsetWidth) / 2, behavior: 'smooth' });
+  }, [active]);
 
   return (
     <section className="sec sec--bg">
       <div className="wrap">
         <SecTitle title={DOMAINES_INTRO.title} hl="8 domaines" sub={DOMAINES_INTRO.sub} />
         <div className="side-layout">
-          <nav className="side-nav" aria-label="Domaines d'expertise">
+          <nav ref={navRef} className="side-nav" aria-label="Domaines d'expertise">
             <span className="side-nav__title">{DOMAINES_INTRO.tag}</span>
             {DOMAINES.map((d) => {
               const Icon = DOMAINE_ICONS[d.id];

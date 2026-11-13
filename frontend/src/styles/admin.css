@@ -142,3 +142,19 @@ body.is-admin { padding-top: 0; }
   .adm-top__user span { display: none; }
 }
 @media (max-width: 560px) { .adm-stats { grid-template-columns: 1fr; } .img-field { grid-template-columns: 1fr; } .adm-shortcuts { grid-template-columns: 1fr; } }
+
+/* Mobile : chaque ligne de tableau devient une fiche */
+@media (max-width: 640px) {
+  .adm-table-wrap { overflow: visible; }
+  .adm-table, .adm-table tbody { display: block; }
+  .adm-table thead { display: none; }
+  .adm-table tr { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding: 14px 16px; border-bottom: 1px solid var(--line); }
+  .adm-table td { display: block; padding: 0; border: 0; background: none !important; box-shadow: none !important; }
+  .adm-table tr.is-unread { background: #fffaf0; box-shadow: inset 3px 0 0 var(--gold); }
+  .adm-table td:has(.cell-title) { flex: 1 1 calc(100% - 90px); min-width: 0; }
+  .adm-table td:has(.thumb) + td:has(.cell-title) { flex-basis: calc(100% - 90px); }
+  .adm-table td:not(:has(.thumb)):has(.cell-title) { flex-basis: 100%; }
+  .adm-table td[style*="max-width"] { flex-basis: 100%; max-width: 100% !important; }
+  .adm-table td:last-child { margin-left: auto; }
+  .adm-table .cell-title { max-width: none; }
+}
