@@ -1,0 +1,44 @@
+# Kapi Consult — site + API + PostgreSQL
+# 1. cp .env.docker.example .env   (puis renseigner les mots de passe)
+# 2. docker compose up -d --build
+# 3. Site : http://localhost:4100   ·   Administration : http://localhost:4100/admin
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${PGUSER:-postgres}
+      POSTGRES_PASSWORD: ${PGPASSWORD:?Définissez PGPASSWORD dans le fichier .env}
+      POSTGRES_DB: ${PGDATABASE:-kapiconsult}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PGUSER:-postgres} -d ${PGDATABASE:-kapiconsult}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  app:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      PORT: 4100
+      PGHOST: db
+      PGPORT: 5432
+      PGUSER: ${PGUSER:-postgres}
+      PGPASSWORD: ${PGPASSWORD}
+      PGDATABASE: ${PGDATABASE:-kapiconsult}
+      JWT_SECRET: ${JWT_SECRET:?Définissez JWT_SECRET dans le fichier .env}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+    ports:
+      - "${APP_PORT:-4100}:4100"
+    volumes:
+      - uploads:/app/backend/uploads
+
+volumes:
+  pgdata:
+  uploads:

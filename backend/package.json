@@ -1,0 +1,22 @@
+{
+  "name": "kapiconsult-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "db:setup": "node src/db/setup.js",
+    "admin:create": "node src/db/create-admin.js",
+    "db:reset": "node src/db/setup.js --force"
+  },
+  "dependencies": {
+    "bcryptjs": "^3.0.3",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.10",
+    "express": "^4.22.3",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.5.0",
+    "pg": "^8.23.1"
+  }
+}

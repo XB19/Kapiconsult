@@ -1,0 +1,10 @@
+# Fins de ligne Unix (le conteneur Docker tourne sous Linux)
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.bmp binary
+*.gif binary
+*.webp binary
+*.svg text eol=lf
+*.pdf binary

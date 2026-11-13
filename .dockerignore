@@ -1,0 +1,11 @@
+**/node_modules
+**/dist
+**/.env
+.env*
+!.env.docker.example
+backend/uploads
+archive
+tools
+.git
+*.md
+frontend/LOGO*
