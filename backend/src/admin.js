@@ -6,6 +6,7 @@ import multer from 'multer';
 import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import { query } from './db/pool.js';
+import { cniDir, removeCni } from './prestataires.js';
 
 const wrap = (fn) => (req, res, next) => fn(req, res, next).catch(next);
 
@@ -228,35 +229,68 @@ export function adminRouter({ UPLOADS }) {
   }));
   router.delete('/users/:id', wrap(async (req, res) => {
     if (Number(req.params.id) === req.admin.id) return res.status(422).json({ message: 'Vous ne pouvez pas supprimer votre propre compte.' });
+    // Supprime aussi les pièces d'identité d'un éventuel profil prestataire
+    const cni = (await query('SELECT cni_recto, cni_verso FROM prestataires WHERE user_id=$1', [req.params.id])).rows[0];
     await query('DELETE FROM users WHERE id=$1', [req.params.id]);
+    removeCni(UPLOADS, cni?.cni_recto); removeCni(UPLOADS, cni?.cni_verso);
     res.status(204).end();
   }));
 
   // ── Annuaire des prestataires : validation des profils et modération des avis
   const PRESTA_STATUTS = ['en_attente', 'valide', 'refuse', 'suspendu'];
   router.get('/prestataires', wrap(async (_req, res) => {
-    res.json((await query(`SELECT p.*, u.email AS compte_email, u.prenom AS compte_prenom, u.nom AS compte_nom,
+    res.json((await query(`SELECT p.*, u.email AS compte_email, u.prenom AS compte_prenom, u.nom AS compte_nom, u.telephone AS compte_telephone,
+      v.prenom || ' ' || v.nom AS verifie_par_nom,
       (SELECT round(avg(note)::numeric, 1)::float FROM avis a WHERE a.prestataire_id = p.id AND a.visible) AS note,
       (SELECT count(*)::int FROM avis a WHERE a.prestataire_id = p.id) AS nb_avis
-      FROM prestataires p LEFT JOIN users u ON u.id = p.user_id
+      FROM prestataires p LEFT JOIN users u ON u.id = p.user_id LEFT JOIN users v ON v.id = p.verifie_par
       ORDER BY (p.statut = 'en_attente') DESC, p.created_at DESC`)).rows);
   }));
   router.patch('/prestataires/:id', wrap(async (req, res) => {
+    const cur = (await query('SELECT id, statut, demo, cni_recto, cni_verso FROM prestataires WHERE id=$1', [req.params.id])).rows[0];
+    if (!cur) return res.status(404).json({ message: 'Prestataire introuvable.' });
     const sets = []; const params = [];
-    if (req.body?.statut !== undefined) {
-      if (!PRESTA_STATUTS.includes(req.body.statut)) return res.status(422).json({ message: 'Statut invalide.' });
-      params.push(req.body.statut); sets.push(`statut=$${params.length}`);
+    const set = (col, v) => { params.push(v); sets.push(`${col}=$${params.length}`); };
+    const { statut, motif } = req.body || {};
+    if (statut !== undefined) {
+      if (!PRESTA_STATUTS.includes(statut)) return res.status(422).json({ message: 'Statut invalide.' });
+      // Aucune mise en ligne sans pièce d'identité complète (sauf profils de démonstration)
+      if (statut === 'valide' && !cur.demo && !(cur.cni_recto && cur.cni_verso)) {
+        return res.status(422).json({ message: 'Impossible de valider : la pièce d’identité (recto et verso) est manquante.' });
+      }
+      if (statut === 'refuse' && !String(motif || '').trim()) return res.status(422).json({ message: 'Indiquez le motif du refus.' });
+      set('statut', statut);
+      if (statut === 'valide') {
+        // Valider = l'administrateur atteste avoir contrôlé l'identité
+        sets.push('verifie=true', 'identite_verifiee_le=coalesce(identite_verifiee_le, now())', 'motif_refus=NULL');
+        set('verifie_par', req.admin.id);
+      }
+      if (statut === 'refuse' || statut === 'suspendu') set('motif_refus', String(motif || '').trim().slice(0, 1000) || null);
     }
-    if (req.body?.verifie !== undefined) { params.push(!!req.body.verifie); sets.push(`verifie=$${params.length}`); }
+    if (req.body?.verifie !== undefined) {
+      if (req.body.verifie && !cur.demo && !(cur.cni_recto && cur.cni_verso)) return res.status(422).json({ message: 'Pièce d’identité manquante.' });
+      set('verifie', !!req.body.verifie);
+      if (req.body.verifie) { sets.push('identite_verifiee_le=now()'); set('verifie_par', req.admin.id); } else sets.push('identite_verifiee_le=NULL');
+    }
     if (!sets.length) return res.status(422).json({ message: 'Aucune modification.' });
     params.push(req.params.id);
-    const { rows } = await query(`UPDATE prestataires SET ${sets.join(', ')}, updated_at=now() WHERE id=$${params.length} RETURNING id, statut, verifie`, params);
-    if (!rows[0]) return res.status(404).json({ message: 'Prestataire introuvable.' });
-    res.json(rows[0]);
+    const { rows } = await query(`UPDATE prestataires SET ${sets.join(', ')}, updated_at=now() WHERE id=$${params.length}
+      RETURNING id, statut, verifie, identite_verifiee_le, motif_refus, verifie_par`, params);
+    res.json({ ...rows[0], verifie_par_nom: rows[0].verifie_par ? `${req.admin.prenom} ${req.admin.nom}` : null });
+  }));
+  // Pièce d'identité d'un prestataire (recto / verso) : consultable uniquement par un administrateur
+  router.get('/prestataires/:id/cni/:face', wrap(async (req, res) => {
+    const col = req.params.face === 'verso' ? 'cni_verso' : 'cni_recto';
+    const { rows } = await query(`SELECT ${col} AS f FROM prestataires WHERE id=$1`, [req.params.id]);
+    const f = rows[0]?.f && path.join(cniDir(UPLOADS), path.basename(rows[0].f));
+    if (!f || !fs.existsSync(f)) return res.status(404).json({ message: 'Fichier introuvable.' });
+    res.set({ 'Cache-Control': 'no-store, private', 'X-Content-Type-Options': 'nosniff' });
+    res.sendFile(f);
   }));
   router.delete('/prestataires/:id', wrap(async (req, res) => {
-    const { rows } = await query('DELETE FROM prestataires WHERE id=$1 RETURNING photo', [req.params.id]);
+    const { rows } = await query('DELETE FROM prestataires WHERE id=$1 RETURNING photo, cni_recto, cni_verso', [req.params.id]);
     const photo = rows[0]?.photo;
+    removeCni(UPLOADS, rows[0]?.cni_recto); removeCni(UPLOADS, rows[0]?.cni_verso);
     if (photo?.startsWith('/uploads/prestataires/')) fs.rm(path.join(UPLOADS, 'prestataires', path.basename(photo)), { force: true }, () => {});
     res.status(204).end();
   }));

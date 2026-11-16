@@ -22,15 +22,15 @@ export async function api(path, { method = 'GET', body, token } = {}) {
 }
 
 // Petit hook de chargement : { data, error, loading }
-export function useApi(path) {
+export function useApi(path, token) {
   const [state, setState] = useState({ data: null, error: null, loading: true });
   useEffect(() => {
     let alive = true;
     setState((s) => ({ ...s, loading: true }));
-    api(path)
+    api(path, { token })
       .then((data) => alive && setState({ data, error: null, loading: false }))
       .catch((error) => alive && setState({ data: null, error, loading: false }));
     return () => { alive = false; };
-  }, [path]);
+  }, [path, token]);
   return state;
 }

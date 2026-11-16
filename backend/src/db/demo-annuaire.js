@@ -3,10 +3,30 @@
 //   Retirer : npm run demo:annuaire -- --retirer
 // Les profils sont marqués « demo » et les comptes clients utilisent le domaine @demo.kapiconsult.local.
 import crypto from 'node:crypto';
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import bcrypt from 'bcryptjs';
 import { pool } from './pool.js';
 
 const DOMAINE = '@demo.kapiconsult.local';
+// Pièces d'identité de démonstration : cartes « SPÉCIMEN » fictives, sans valeur, pour montrer la vérification
+const CNI_DIR = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..', 'uploads', 'cni');
+const esc = (t) => String(t).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+function specimen(file, face, nom, numero) {
+  const lignes = face === 'recto'
+    ? [['Nom affiché', nom], ['N° de document', numero], ['Nationalité', 'Fictive (démonstration)']]
+    : [['Adresse', 'Donnée fictive'], ['Délivrée par', 'Démonstration Kapi Consult'], ['N° de document', numero]];
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="856" height="540" viewBox="0 0 856 540">
+  <rect width="856" height="540" rx="28" fill="#eef0f7" stroke="#1f2a7a" stroke-width="6"/>
+  <rect x="0" y="0" width="856" height="86" rx="28" fill="#1f2a7a"/><rect x="0" y="50" width="856" height="36" fill="#1f2a7a"/>
+  <text x="40" y="56" font-family="Arial" font-size="30" font-weight="bold" fill="#fff">DOCUMENT DE DÉMONSTRATION — ${face.toUpperCase()}</text>
+  ${face === 'recto' ? '<rect x="40" y="120" width="210" height="260" rx="12" fill="#c9cde0"/><circle cx="145" cy="210" r="52" fill="#9aa1c2"/><rect x="75" y="280" width="140" height="80" rx="40" fill="#9aa1c2"/>' : '<rect x="40" y="120" width="210" height="260" rx="12" fill="none" stroke="#9aa1c2" stroke-width="4" stroke-dasharray="10 8"/>'}
+  ${lignes.map(([k, v], i) => `<text x="290" y="${150 + i * 80}" font-family="Arial" font-size="22" fill="#5b6185">${esc(k)}</text><text x="290" y="${182 + i * 80}" font-family="Arial" font-size="30" font-weight="bold" fill="#1d2140">${esc(v)}</text>`).join('')}
+  <text x="428" y="470" text-anchor="middle" font-family="Arial" font-size="64" font-weight="bold" fill="#c0392b" opacity="0.85" transform="rotate(-12 428 440)">SPÉCIMEN — SANS VALEUR</text>
+</svg>`;
+  fs.writeFileSync(path.join(CNI_DIR, file), svg);
+}
 
 // Quartiers et villes avec leurs coordonnées approximatives
 const L = {
@@ -82,6 +102,7 @@ const tel = (i) => `+228 9${(i % 9) + 1} 00 ${String(10 + i).padStart(2, '0')} $
 
 async function retirer(db) {
   const p = await db.query('DELETE FROM prestataires WHERE demo RETURNING id');
+  if (fs.existsSync(CNI_DIR)) for (const f of fs.readdirSync(CNI_DIR)) if (f.startsWith('demo-')) fs.rmSync(path.join(CNI_DIR, f), { force: true });
   const u = await db.query('DELETE FROM users WHERE email LIKE $1 RETURNING id', [`%${DOMAINE}`]);
   console.log(`Démonstration retirée : ${p.rowCount} prestataires, ${u.rowCount} comptes clients (et leurs avis).`);
 }
@@ -90,6 +111,7 @@ async function main() {
   const db = await pool.connect();
   try {
     await db.query('ALTER TABLE prestataires ADD COLUMN IF NOT EXISTS demo BOOLEAN NOT NULL DEFAULT false');
+    fs.mkdirSync(CNI_DIR, { recursive: true });
     await db.query('BEGIN');
     await retirer(db);
     if (process.argv.includes('--retirer')) { await db.query('COMMIT'); return; }
@@ -105,19 +127,25 @@ async function main() {
 
     let nAvis = 0;
     for (const [i, x] of PROS.entries()) {
-      const [nom, metier, lk, exp, spec, desc, dispo, tarif, statut, verifie, deplacement, rayon] = x;
+      const [nom, metier, lk, exp, spec, desc, dispo, , statut, verifie, deplacement, rayon] = x;
       const [ville, quartier, lat, lng] = L[lk];
       // Légère dispersion autour du quartier pour des distances réalistes
       const jitter = () => (rnd() - 0.5) * 0.008;
       const created = new Date(Date.now() - Math.floor(rnd() * 200 + 5) * 86400000);
+      const numero = `DEMO-${String(100000 + i * 7919).slice(-6)}`;
       const { rows } = await db.query(
         `INSERT INTO prestataires (nom_affiche, metier, specialites, description, experience, telephone, whatsapp, email, pays, ville, quartier,
-          latitude, longitude, rayon_km, deplacement, disponibilite, tarif, statut, verifie, vues, demo, created_at)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'Togo',$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,true,$20) RETURNING id`,
+          latitude, longitude, rayon_km, deplacement, disponibilite, tarif, statut, verifie, vues, demo, created_at,
+          cni_numero, cni_recto, cni_verso, cni_transmise_le, identite_verifiee_le, conditions_acceptees_le)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'Togo',$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,true,$20,
+          $21,$22,$23,$20,$24,$20) RETURNING id`,
         [nom, metier, spec.split(',').map((s) => s.trim()), desc, exp, tel(i), rnd() > 0.25 ? tel(i) : null,
-          rnd() > 0.5 ? `contact${i + 1}${DOMAINE}` : null, ville, quartier, lat + jitter(), lng + jitter(), rayon, deplacement, dispo, tarif,
-          statut, verifie, Math.floor(rnd() * 400) + 15, created],
+          rnd() > 0.5 ? `contact${i + 1}${DOMAINE}` : null, ville, quartier, lat + jitter(), lng + jitter(), rayon, deplacement, dispo, null /* tarifs non affichés : négociés selon la tâche */,
+          statut, verifie, Math.floor(rnd() * 400) + 15, created,
+          numero, `demo-${i + 1}-recto.svg`, `demo-${i + 1}-verso.svg`, verifie ? created : null],
       );
+      specimen(`demo-${i + 1}-recto.svg`, 'recto', nom, numero);
+      specimen(`demo-${i + 1}-verso.svg`, 'verso', nom, numero);
       if (statut !== 'valide') continue;
       // 0 à 7 avis par prestataire, majoritairement positifs
       const n = Math.floor(rnd() * 8);

@@ -23,6 +23,8 @@ import Dashboard from './admin/Dashboard';
 import { ArticlesAdmin, ProduitsAdmin, OffresAdmin, FaqAdmin } from './admin/Contents';
 import { MessagesAdmin, CandidaturesAdmin, UsersAdmin } from './admin/Requests';
 import { PrestatairesAdmin, AvisAdmin } from './admin/Annuaire';
+import ConditionsQuotidienPage from './pages/ConditionsQuotidienPage';
+import { QuotidienGate } from './components/quotidien';
 
 export default function App() {
   return (
@@ -51,9 +53,13 @@ export default function App() {
         <Route path="nos-produits/:slug" element={<ProduitPage />} />
         <Route path="offres" element={<OffresPage />} />
         <Route path="faq" element={<FaqPage />} />
-        <Route path="prestataires" element={<PrestatairesPage />} />
-        <Route path="prestataires/inscription" element={<DevenirPrestatairePage />} />
-        <Route path="prestataires/:id" element={<PrestatairePage />} />
+        <Route path="quotidien/conditions" element={<ConditionsQuotidienPage />} />
+        {/* Quotidien : réservé aux membres ayant accepté les conditions */}
+        <Route element={<QuotidienGate />}>
+          <Route path="prestataires" element={<PrestatairesPage />} />
+          <Route path="prestataires/inscription" element={<DevenirPrestatairePage />} />
+          <Route path="prestataires/:id" element={<PrestatairePage />} />
+        </Route>
         <Route path="contact" element={<ContactPage />} />
         <Route path="candidature-spontanee" element={<CandidaturePage />} />
         <Route path="login" element={<LoginPage />} />

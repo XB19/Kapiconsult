@@ -118,6 +118,15 @@ CREATE TABLE IF NOT EXISTS prestataires (
   verifie      BOOLEAN      NOT NULL DEFAULT false,
   vues         INTEGER      NOT NULL DEFAULT 0,
   demo         BOOLEAN      NOT NULL DEFAULT false, -- profil de démonstration (npm run demo:annuaire)
+  -- Pièce d'identité (fichiers privés, jamais publiés) et vérification par l'administrateur
+  cni_numero   VARCHAR(60),
+  cni_recto    VARCHAR(255),
+  cni_verso    VARCHAR(255),
+  cni_transmise_le     TIMESTAMPTZ,
+  identite_verifiee_le TIMESTAMPTZ,
+  verifie_par  INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  motif_refus  TEXT,
+  conditions_acceptees_le TIMESTAMPTZ,
   created_at   TIMESTAMPTZ  NOT NULL DEFAULT now(),
   updated_at   TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
@@ -133,3 +142,7 @@ CREATE TABLE IF NOT EXISTS avis (
   created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
   UNIQUE (prestataire_id, user_id)
 );
+
+-- Quotidien : acceptation des conditions d'utilisation par chaque membre
+ALTER TABLE users ADD COLUMN IF NOT EXISTS quotidien_conditions_version VARCHAR(20);
+ALTER TABLE users ADD COLUMN IF NOT EXISTS quotidien_accepte_le TIMESTAMPTZ;

@@ -47,7 +47,7 @@ export function ProCard({ p }) {
       <div className="pro-card__head">
         <ProAvatar p={p} />
         <div style={{ minWidth: 0 }}>
-          <h3 className="pro-card__name">{p.nom_affiche}{p.verifie && <BadgeCheck size={17} className="pro-verified" aria-label="Profil vérifié" />}</h3>
+          <h3 className="pro-card__name">{p.nom_affiche}{p.verifie && <BadgeCheck size={17} className="pro-verified" aria-label="Identité vérifiée" />}</h3>
           <span className="pro-card__job">{p.metier}</span>
         </div>
       </div>

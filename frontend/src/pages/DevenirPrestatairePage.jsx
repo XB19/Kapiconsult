@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  BadgeCheck, CheckCircle2, Clock3, Eye, ImagePlus, Loader2, LocateFixed, LogIn, MapPin, Save, Trash2, UserPlus, X,
+  AlertTriangle, BadgeCheck, Clock3, Eye, FileText, IdCard, ImagePlus, Loader2, LocateFixed, Lock, MapPin, Save, ShieldCheck, Trash2, X,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
@@ -10,36 +10,36 @@ import { Field, Flash, cls } from '../components/forms';
 import { ANNUAIRE, METIERS, PAYS, RAYONS, VILLES } from '../content/prestataires';
 
 const STATUTS = {
-  en_attente: ['En attente de validation', 'pill--soft', 'Notre équipe vérifie votre profil. Il apparaîtra dans l’annuaire dès sa validation.'],
+  en_attente: ['En attente de vérification', 'pill--soft', 'Notre équipe vérifie votre pièce d’identité et votre profil. Il apparaîtra dans l’annuaire dès sa validation.'],
   valide: ['Profil en ligne', 'pill--ok', 'Votre profil est visible par les clients dans l’annuaire.'],
   refuse: ['Profil non validé', 'pill--ko', 'Votre profil n’a pas été validé. Corrigez-le puis enregistrez-le pour le soumettre à nouveau.'],
   suspendu: ['Profil suspendu', 'pill--ko', 'Votre profil est temporairement masqué. Contactez Kapi Consult pour plus d’informations.'],
 };
-const AVANTAGES = [
-  'Inscription gratuite et sans engagement',
-  'Visible par les clients de votre ville et de votre quartier',
-  'Les clients vous appellent ou vous écrivent directement',
-  'Les avis clients renforcent votre réputation',
-];
-
-// Invitation à se connecter avant de créer son profil
-function Gate() {
-  const next = encodeURIComponent('/prestataires/inscription');
+// Choix d'une face de la CNI, avec aperçu (image) ou nom du fichier (PDF)
+function CniPicker({ name, label, sent, error, onPick }) {
+  const [file, setFile] = useState(null);
+  const [url, setUrl] = useState(null);
+  useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
+  const pick = (e) => {
+    const f = e.target.files?.[0] || null;
+    setFile(f);
+    setUrl(f && f.type.startsWith('image/') ? URL.createObjectURL(f) : null);
+    onPick?.(!!f);
+  };
   return (
-    <div className="pro-join">
-      <div className="box">
-        <span className="over">Étape 1 sur 2</span>
-        <h2 className="t-md" style={{ margin: '6px 0 10px' }}>Créez votre compte Kapi Consult</h2>
-        <p className="muted" style={{ marginBottom: 24 }}>Un compte vous permet de créer votre fiche professionnelle, puis de la modifier à tout moment.</p>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-          <Link to={`/inscription?next=${next}`} className="btn btn--gold"><UserPlus size={17} />Créer un compte</Link>
-          <Link to={`/login?next=${next}`} className="btn btn--outline"><LogIn size={17} />J’ai déjà un compte</Link>
-        </div>
+    <div className={`cni-pick ${error ? 'is-invalid' : ''} ${file || sent ? 'has-file' : ''}`}>
+      <span className="cni-pick__prev">
+        {url ? <img src={url} alt="" /> : file ? <FileText size={30} /> : sent ? <ShieldCheck size={30} /> : <IdCard size={30} />}
+      </span>
+      <div className="cni-pick__body">
+        <b>{label}<span className="req"> *</span></b>
+        <small>{file ? file.name : sent ? 'Déjà transmis. Choisissez un fichier pour le remplacer.' : 'Photo nette et lisible : JPG, PNG, WEBP ou PDF, 6 Mo max.'}</small>
+        <label className="btn btn--outline btn--sm" style={{ cursor: 'pointer' }}>
+          <ImagePlus size={15} />{file || sent ? 'Changer' : 'Choisir un fichier'}
+          <input type="file" name={name} accept="image/png,image/jpeg,image/webp,application/pdf" hidden onChange={pick} />
+        </label>
       </div>
-      <div className="box pro-join__why">
-        <h3>Pourquoi rejoindre l’annuaire ?</h3>
-        <ul className="checks">{AVANTAGES.map((a) => <li key={a}><CheckCircle2 size={17} />{a}</li>)}</ul>
-      </div>
+      {error && <span className="field__error" role="alert">{error}</span>}
     </div>
   );
 }
@@ -55,6 +55,7 @@ export default function DevenirPrestatairePage() {
   const [preview, setPreview] = useState(null);
   const [removePhoto, setRemovePhoto] = useState(false);
   const [confirmDel, setConfirmDel] = useState(false);
+  const [cniChange, setCniChange] = useState(false);
 
   useEffect(() => {
     if (!token) return undefined;
@@ -84,12 +85,14 @@ export default function DevenirPrestatairePage() {
     fd.set('deplacement', fd.get('deplacement') ? 'true' : 'false');
     if (removePhoto) fd.set('retirer_photo', '1');
     if (!fd.get('photo')?.size) fd.delete('photo');
+    for (const k of ['cni_recto', 'cni_verso']) if (!fd.get(k)?.size) fd.delete(k);
     setSending(true); setErrors({}); setFlash({});
     try {
       const res = await api('/mon-profil-prestataire', { method: 'POST', body: fd, token });
       setState({ loading: false, profil: res.profil });
       setFlash({ success: res.message });
       setRemovePhoto(false);
+      setCniChange(false);
     } catch (err) {
       setErrors(err.errors || {});
       setFlash({ error: err.status === 422 ? 'Veuillez corriger les champs indiqués.' : 'Une erreur est survenue, merci de réessayer.' });
@@ -114,7 +117,6 @@ export default function DevenirPrestatairePage() {
         sub={ANNUAIRE.ctaText} crumbs={[{ label: 'Quotidien', to: '/prestataires' }, { label: state.profil ? 'Mon profil' : 'Inscription' }]} />
       <section className="sec sec--bg">
         <div className="wrap" style={{ maxWidth: 940 }}>
-          {!user && <Gate />}
           {user && state.loading && <div className="skeleton" style={{ height: 400 }} />}
           {user && !state.loading && (
             <>
@@ -124,9 +126,13 @@ export default function DevenirPrestatairePage() {
                   <div style={{ flex: 1, minWidth: 220 }}>
                     <span className={`pill ${st[1]}`}>{st[0]}</span>
                     <p className="muted small" style={{ marginTop: 8 }}>{st[2]}</p>
+                    {p.motif_refus && (p.statut === 'refuse' || p.statut === 'suspendu') && (
+                      <p className="pro-status__motif"><AlertTriangle size={15} /><span><b>Motif :</b> {p.motif_refus}</span></p>
+                    )}
                     <div className="pro-status__stats">
                       <span><Eye size={15} />{p.vues} vue{p.vues > 1 ? 's' : ''} du profil</span>
                       <span><BadgeCheck size={15} />{p.nb_avis} avis{p.note ? ` · ${Number(p.note).toFixed(1)}/5` : ''}</span>
+                      <span><IdCard size={15} />{p.identite_verifiee_le ? 'Identité vérifiée' : p.cni_recto_ok && p.cni_verso_ok ? 'CNI transmise, vérification en cours' : 'CNI à transmettre'}</span>
                     </div>
                   </div>
                   <Link to={`/prestataires/${p.id}`} className="btn btn--outline btn--sm"><Eye size={15} />Voir ma fiche</Link>
@@ -208,14 +214,9 @@ export default function DevenirPrestatairePage() {
                   </Field>
 
                   <div className="form__step"><span>4</span>Informations pratiques</div>
-                  <div className="form__row">
-                    <Field label="Disponibilités" name="disponibilite">
-                      <input id="disponibilite" name="disponibilite" className="input" maxLength={160} defaultValue={p.disponibilite || ''} placeholder="Ex. Lun – Sam, 7h – 19h · urgences le dimanche" />
-                    </Field>
-                    <Field label="Tarifs indicatifs" name="tarif">
-                      <input id="tarif" name="tarif" className="input" maxLength={160} defaultValue={p.tarif || ''} placeholder="Ex. Diagnostic à partir de 5 000 FCFA" />
-                    </Field>
-                  </div>
+                  <Field label="Disponibilités" name="disponibilite" hint="Les tarifs ne sont pas affichés : ils se négocient avec chaque client selon la prestation.">
+                    <input id="disponibilite" name="disponibilite" className="input" maxLength={160} defaultValue={p.disponibilite || ''} placeholder="Ex. Lun – Sam, 7h – 19h · urgences le dimanche" />
+                  </Field>
                   <Field label="Photo de profil ou de votre atelier" name="photo" hint="JPG, PNG ou WEBP — 4 Mo maximum">
                     <div className="photo-field">
                       <span className="photo-field__img">{photo ? <img src={photo} alt="" /> : <ImagePlus size={26} />}</span>
@@ -230,7 +231,37 @@ export default function DevenirPrestatairePage() {
                     </div>
                   </Field>
 
-                  <p className="small muted"><Clock3 size={14} style={{ verticalAlign: -2 }} /> Les profils sont vérifiés par Kapi Consult avant publication. Vos coordonnées sont affichées sur votre fiche pour que les clients puissent vous contacter.</p>
+                  <div className="form__step"><span>5</span>Vérification d’identité</div>
+                  <div className="alert alert--info cni-note">
+                    <Lock size={20} />
+                    <span>Votre carte nationale d’identité sert uniquement à vérifier votre identité. Elle n’est <b>jamais publiée</b> et seuls les administrateurs de Kapi Consult peuvent la consulter.</span>
+                  </div>
+                  <Field label="Numéro de la CNI" name="cni_numero" required error={errors.cni_numero}>
+                    <input id="cni_numero" name="cni_numero" className={c('cni_numero')} required maxLength={60} defaultValue={p.cni_numero || ''} placeholder="Numéro inscrit sur votre carte" autoComplete="off" />
+                  </Field>
+                  <div className="form__row">
+                    <CniPicker name="cni_recto" label="Recto de la CNI (face avec photo)" sent={p.cni_recto_ok} error={errors.cni_recto} onPick={(v) => v && setCniChange(true)} />
+                    <CniPicker name="cni_verso" label="Verso de la CNI" sent={p.cni_verso_ok} error={errors.cni_verso} onPick={(v) => v && setCniChange(true)} />
+                  </div>
+                  {cniChange && state.profil?.statut === 'valide' && (
+                    <p className="small" style={{ color: 'var(--danger)' }}><AlertTriangle size={14} style={{ verticalAlign: -2 }} /> Remplacer votre pièce d’identité masquera votre profil jusqu’à une nouvelle vérification.</p>
+                  )}
+
+                  <div className="form__step"><span>6</span>Engagements</div>
+                  <div className="engage">
+                    <label className="check">
+                      <input type="checkbox" name="attestation" value="1" required defaultChecked={!!p.conditions_acceptees_le} />
+                      <span>Je certifie sur l’honneur que les informations fournies sont exactes et que la pièce d’identité transmise est la mienne.</span>
+                    </label>
+                    {errors.attestation && <span className="field__error">{errors.attestation}</span>}
+                    <label className="check">
+                      <input type="checkbox" name="accepte_conditions" value="1" required defaultChecked={!!p.conditions_acceptees_le} />
+                      <span>J’accepte les <Link to="/quotidien/conditions" target="_blank" className="u-link">conditions d’utilisation de Quotidien</Link>. Je comprends que Kapi Consult se limite à la mise en relation et que je suis seul responsable de mes prestations, de mes tarifs et des paiements reçus.</span>
+                    </label>
+                    {errors.accepte_conditions && <span className="field__error">{errors.accepte_conditions}</span>}
+                  </div>
+
+                  <p className="small muted"><Clock3 size={14} style={{ verticalAlign: -2 }} /> Votre profil est publié après vérification de votre identité par Kapi Consult. Vos coordonnées sont affichées sur votre fiche pour que les clients puissent vous contacter.</p>
                   <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
                     <button type="submit" className="btn btn--gold" disabled={sending}>{sending ? <Loader2 size={17} className="spin" /> : <Save size={17} />}{sending ? 'Enregistrement…' : state.profil ? 'Enregistrer les modifications' : 'Créer mon profil'}</button>
                     {state.profil && (confirmDel

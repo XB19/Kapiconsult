@@ -10,6 +10,7 @@ import { dateFr } from '../lib/format';
 import { Empty, Reveal } from '../components/ui';
 import { Flash } from '../components/forms';
 import { ProAvatar, Rating, Stars, lieu } from '../components/annuaire';
+import { MiseEnRelation } from '../components/quotidien';
 
 const digits = (t) => String(t || '').replace(/[^\d+]/g, '');
 const waLink = (t) => `https://wa.me/${digits(t).replace(/^\+/, '')}`;
@@ -118,12 +119,12 @@ export default function PrestatairePage() {
               <ProAvatar p={p} size={112} />
               <div style={{ minWidth: 0 }}>
                 <span className="pill pill--gold">{p.metier}</span>
-                <h1 className="pro-hero__name">{p.nom_affiche}{p.verifie && <BadgeCheck size={24} className="pro-verified" aria-label="Profil vérifié" />}</h1>
+                <h1 className="pro-hero__name">{p.nom_affiche}{p.verifie && <BadgeCheck size={24} className="pro-verified" aria-label="Identité vérifiée" />}</h1>
                 <Rating note={p.note} n={p.nb_avis} size={17} />
                 <div className="pro-card__meta" style={{ marginTop: 14 }}>
                   <span><MapPin size={16} />{lieu(p)}{p.pays ? ` — ${p.pays}` : ''}</span>
                   {p.experience > 0 && <span><Clock3 size={16} />{p.experience} an{p.experience > 1 ? 's' : ''} d'expérience</span>}
-                  {p.verifie && <span className="pro-dist"><BadgeCheck size={16} />Profil vérifié par Kapi Consult</span>}
+                  {p.verifie && <span className="pro-dist"><BadgeCheck size={16} />Identité vérifiée par Kapi Consult</span>}
                 </div>
               </div>
             </Reveal>
@@ -140,7 +141,7 @@ export default function PrestatairePage() {
               <div className="pro-facts">
                 <div><Route size={20} /><span><b>Zone d'intervention</b>{p.deplacement ? `Se déplace jusqu’à ${p.rayon_km} km autour de ${p.ville}` : `Reçoit les clients à ${lieu(p)}`}</span></div>
                 {p.disponibilite && <div><CalendarClock size={20} /><span><b>Disponibilités</b>{p.disponibilite}</span></div>}
-                {p.tarif && <div><Wallet size={20} /><span><b>Tarifs indicatifs</b>{p.tarif}</span></div>}
+                <div><Wallet size={20} /><span><b>Tarifs</b>Sur devis, à convenir selon la prestation</span></div>
                 <div><Briefcase size={20} /><span><b>Membre depuis</b>{dateFr(p.created_at)}</span></div>
               </div>
             </Reveal>
@@ -184,6 +185,7 @@ export default function PrestatairePage() {
                 <span>Conseil : demandez un devis avant le début des travaux et ne payez jamais l’intégralité à l’avance.</span>
               </div>
             </div>
+            <MiseEnRelation compact />
             <Link to={`/prestataires?metier=${encodeURIComponent(p.metier)}&ville=${encodeURIComponent(p.ville)}`} className="link" style={{ marginTop: 18 }}>
               <ArrowLeft size={15} />Prestataires similaires à {p.ville}
             </Link>

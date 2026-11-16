@@ -42,6 +42,7 @@ export default function Footer() {
               <Link to="/actualites">Actualités</Link>
               <Link to="/nos-produits">Nos Produits</Link>
               <Link to="/contact">Contact</Link>
+              <Link to="/quotidien/conditions">Conditions Quotidien</Link>
             </div>
           </div>
           <div>

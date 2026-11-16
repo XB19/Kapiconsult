@@ -2,6 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import express from 'express';
+import crypto from 'node:crypto';
 import multer from 'multer';
 import { query } from './db/pool.js';
 
@@ -19,29 +20,83 @@ const distanceSql = (lat, lng) => `CASE WHEN p.latitude IS NULL THEN NULL ELSE
   + sin(radians(${lat})) * sin(radians(p.latitude)))) END`;
 
 const PUBLIC_COLS = `p.id, p.nom_affiche, p.metier, p.specialites, p.description, p.experience, p.pays, p.ville, p.quartier,
-  p.rayon_km, p.deplacement, p.disponibilite, p.tarif, p.photo, p.verifie, p.created_at`;
+  p.rayon_km, p.deplacement, p.disponibilite, p.photo, p.verifie, p.created_at`;
 const NOTE_JOIN = `LEFT JOIN (SELECT prestataire_id, round(avg(note)::numeric, 1)::float AS note, count(*)::int AS nb_avis
   FROM avis WHERE visible GROUP BY prestataire_id) a ON a.prestataire_id = p.id`;
 
 const num = (v) => (v === '' || v == null || Number.isNaN(Number(v)) ? null : Number(v));
 const clean = (v, max = 255) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 
+// Version des conditions d'utilisation de Quotidien : la changer oblige chaque membre à les accepter de nouveau
+export const CONDITIONS_VERSION = '2026-11';
+
+// Colonnes ajoutées aux bases déjà installées (exécuté au démarrage, sans effet si elles existent)
+export const QUOTIDIEN_MIGRATION = `
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS quotidien_conditions_version VARCHAR(20);
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS quotidien_accepte_le TIMESTAMPTZ;
+  ALTER TABLE prestataires ADD COLUMN IF NOT EXISTS cni_numero VARCHAR(60);
+  ALTER TABLE prestataires ADD COLUMN IF NOT EXISTS cni_recto VARCHAR(255);
+  ALTER TABLE prestataires ADD COLUMN IF NOT EXISTS cni_verso VARCHAR(255);
+  ALTER TABLE prestataires ADD COLUMN IF NOT EXISTS cni_transmise_le TIMESTAMPTZ;
+  ALTER TABLE prestataires ADD COLUMN IF NOT EXISTS identite_verifiee_le TIMESTAMPTZ;
+  ALTER TABLE prestataires ADD COLUMN IF NOT EXISTS verifie_par INTEGER REFERENCES users(id) ON DELETE SET NULL;
+  ALTER TABLE prestataires ADD COLUMN IF NOT EXISTS motif_refus TEXT;
+  ALTER TABLE prestataires ADD COLUMN IF NOT EXISTS conditions_acceptees_le TIMESTAMPTZ;`;
+
+// Fichiers de pièce d'identité : stockés hors des dossiers publics, lus uniquement par l'administration
+export const cniDir = (UPLOADS) => path.join(UPLOADS, 'cni');
+export const removeCni = (UPLOADS, f) => { if (f) fs.rm(path.join(cniDir(UPLOADS), path.basename(f)), { force: true }, () => {}); };
+
 export function prestatairesRouter({ UPLOADS, requireAuth, optionalAuth }) {
   const router = express.Router();
   const PHOTOS = path.join(UPLOADS, 'prestataires');
+  const CNI = cniDir(UPLOADS);
   fs.mkdirSync(PHOTOS, { recursive: true });
+  fs.mkdirSync(CNI, { recursive: true });
+  const isCni = (f) => f.fieldname === 'cni_recto' || f.fieldname === 'cni_verso';
   const upload = multer({
     storage: multer.diskStorage({
-      destination: PHOTOS,
-      filename: (_req, file, cb) => cb(null, `${Date.now()}-${Math.round(Math.random() * 1e6)}${path.extname(file.originalname).toLowerCase()}`),
+      destination: (_req, file, cb) => cb(null, isCni(file) ? CNI : PHOTOS),
+      filename: (_req, file, cb) => cb(null, `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${path.extname(file.originalname).toLowerCase()}`),
     }),
-    limits: { fileSize: 4 * 1024 * 1024 },
-    fileFilter: (_req, file, cb) => cb(null, /^image\/(png|jpe?g|webp)$/.test(file.mimetype)),
+    limits: { fileSize: 6 * 1024 * 1024, files: 3 },
+    fileFilter: (_req, file, cb) => cb(null, isCni(file)
+      ? /^(image\/(png|jpe?g|webp)|application\/pdf)$/.test(file.mimetype)
+      : /^image\/(png|jpe?g|webp)$/.test(file.mimetype)),
   });
+  const fields = upload.fields([{ name: 'photo', maxCount: 1 }, { name: 'cni_recto', maxCount: 1 }, { name: 'cni_verso', maxCount: 1 }]);
   const removePhoto = (p) => { if (p?.startsWith('/uploads/prestataires/')) fs.rm(path.join(PHOTOS, path.basename(p)), { force: true }, () => {}); };
+  const dropUploads = (files) => Object.values(files || {}).flat().forEach((f) => fs.rm(f.path, { force: true }, () => {}));
 
-  // ── Recherche publique
-  router.get('/prestataires', wrap(async (req, res) => {
+  // ── Accès à Quotidien : compte obligatoire + conditions d'utilisation acceptées (les administrateurs sont dispensés)
+  const accessOf = async (userId) => (await query('SELECT role, quotidien_conditions_version, quotidien_accepte_le FROM users WHERE id = $1', [userId])).rows[0];
+  const requireQuotidien = (req, res, next) => requireAuth(req, res, async () => {
+    try {
+      const u = await accessOf(req.user.id);
+      if (!u) return res.status(401).json({ message: 'Non authentifié.' });
+      if (u.role !== 'admin' && u.quotidien_conditions_version !== CONDITIONS_VERSION) {
+        return res.status(403).json({ code: 'conditions', message: 'Vous devez accepter les conditions d’utilisation de Quotidien.' });
+      }
+      return next();
+    } catch (e) { return next(e); }
+  });
+
+  router.get('/quotidien/acces', requireAuth, wrap(async (req, res) => {
+    const u = await accessOf(req.user.id);
+    if (!u) return res.status(401).json({ message: 'Non authentifié.' });
+    res.json({ version: CONDITIONS_VERSION, accepte: u.role === 'admin' || u.quotidien_conditions_version === CONDITIONS_VERSION, accepte_le: u.quotidien_accepte_le });
+  }));
+
+  router.post('/quotidien/conditions', requireAuth, wrap(async (req, res) => {
+    if (req.body?.accepte !== true) return res.status(422).json({ errors: { accepte: 'Vous devez cocher la case pour accepter les conditions.' } });
+    const { rows } = await query(`UPDATE users SET quotidien_conditions_version = $1, quotidien_accepte_le = now() WHERE id = $2
+      RETURNING quotidien_accepte_le`, [CONDITIONS_VERSION, req.user.id]);
+    if (!rows[0]) return res.status(401).json({ message: 'Non authentifié.' });
+    res.json({ version: CONDITIONS_VERSION, accepte: true, accepte_le: rows[0].quotidien_accepte_le });
+  }));
+
+  // ── Recherche (réservée aux membres)
+  router.get('/prestataires', requireQuotidien, wrap(async (req, res) => {
     const { q, metier, ville, tri } = req.query;
     const lat = num(req.query.lat); const lng = num(req.query.lng);
     const rayon = num(req.query.rayon); const noteMin = num(req.query.note);
@@ -76,7 +131,7 @@ export function prestatairesRouter({ UPLOADS, requireAuth, optionalAuth }) {
   }));
 
   // Filtres disponibles (métiers et villes ayant au moins un prestataire visible)
-  router.get('/prestataires/filtres', wrap(async (_req, res) => {
+  router.get('/prestataires/filtres', requireQuotidien, wrap(async (_req, res) => {
     const metiers = await query("SELECT metier, count(*)::int AS n FROM prestataires WHERE statut='valide' GROUP BY metier ORDER BY n DESC, metier");
     const villes = await query("SELECT ville, count(*)::int AS n FROM prestataires WHERE statut='valide' GROUP BY ville ORDER BY n DESC, ville");
     const total = await query("SELECT count(*)::int AS n FROM prestataires WHERE statut='valide'");
@@ -84,19 +139,36 @@ export function prestatairesRouter({ UPLOADS, requireAuth, optionalAuth }) {
   }));
 
   // ── Profil du professionnel connecté
+  // Les chemins des fichiers d'identité ne sortent jamais : seul leur état est renvoyé
+  const ownProfile = ({ cni_recto: r, cni_verso: v, verifie_par: _vp, ...p }) => ({ ...p, cni_recto_ok: !!r, cni_verso_ok: !!v });
+
   router.get('/mon-profil-prestataire', requireAuth, wrap(async (req, res) => {
     const { rows } = await query(`SELECT p.*, a.note, coalesce(a.nb_avis, 0) AS nb_avis FROM prestataires p ${NOTE_JOIN} WHERE p.user_id = $1`, [req.user.id]);
-    res.json({ profil: rows[0] || null });
+    res.json({ profil: rows[0] ? ownProfile(rows[0]) : null });
   }));
 
-  router.post('/mon-profil-prestataire', requireAuth, upload.single('photo'), wrap(async (req, res) => {
+  router.post('/mon-profil-prestataire', requireAuth, (req, res, next) => fields(req, res, (err) => {
+    if (!err) return next();
+    const message = err.code === 'LIMIT_FILE_SIZE' ? 'Fichier trop volumineux (6 Mo maximum).' : 'Fichier refusé.';
+    return res.status(422).json({ errors: { cni_recto: message } });
+  }), wrap(async (req, res) => {
     const b = req.body || {};
+    const files = req.files || {};
+    const file = (k) => files[k]?.[0];
+    const prev = (await query('SELECT id, photo, statut, cni_recto, cni_verso, conditions_acceptees_le FROM prestataires WHERE user_id = $1', [req.user.id])).rows[0];
+
     const errors = {};
     const need = { nom_affiche: 'Le nom affiché', metier: 'Le métier', description: 'La présentation', telephone: 'Le téléphone', ville: 'La ville' };
     for (const [k, l] of Object.entries(need)) if (!clean(b[k])) errors[k] = `${l} est obligatoire.`;
     if (clean(b.description, 3000).length && clean(b.description, 3000).length < 30) errors.description = 'Décrivez votre activité en au moins 30 caractères.';
     if (b.email && !/^\S+@\S+\.\S+$/.test(b.email)) errors.email = "L'adresse email n'est pas valide.";
-    if (Object.keys(errors).length) { if (req.file) removePhoto(`/uploads/prestataires/${req.file.filename}`); return res.status(422).json({ errors }); }
+    // Vérification d'identité : numéro + recto et verso de la CNI
+    if (!clean(b.cni_numero, 60) || clean(b.cni_numero, 60).length < 4) errors.cni_numero = 'Indiquez le numéro de votre carte nationale d’identité.';
+    if (!file('cni_recto') && !prev?.cni_recto) errors.cni_recto = 'La photo du recto de votre CNI est obligatoire.';
+    if (!file('cni_verso') && !prev?.cni_verso) errors.cni_verso = 'La photo du verso de votre CNI est obligatoire.';
+    if (b.accepte_conditions !== '1') errors.accepte_conditions = 'Vous devez accepter les conditions d’utilisation de Quotidien.';
+    if (b.attestation !== '1') errors.attestation = 'Vous devez certifier l’exactitude de vos informations.';
+    if (Object.keys(errors).length) { dropUploads(files); return res.status(422).json({ errors }); }
 
     const specialites = clean(b.specialites, 600).split(',').map((s) => s.trim()).filter(Boolean).slice(0, 10);
     const lat = num(b.latitude); const lng = num(b.longitude);
@@ -106,39 +178,54 @@ export function prestatairesRouter({ UPLOADS, requireAuth, optionalAuth }) {
       email: clean(b.email, 190) || null, pays: clean(b.pays, 60) || 'Togo', ville: clean(b.ville, 80), quartier: clean(b.quartier, 120) || null,
       latitude: lat != null && Math.abs(lat) <= 90 ? lat : null, longitude: lng != null && Math.abs(lng) <= 180 ? lng : null,
       rayon_km: Math.max(1, Math.min(500, num(b.rayon_km) || 10)), deplacement: b.deplacement !== 'false',
-      disponibilite: clean(b.disponibilite, 160) || null, tarif: clean(b.tarif, 160) || null,
+      // Pas de tarif affiché : le prix se négocie entre client et prestataire selon la tâche
+      disponibilite: clean(b.disponibilite, 160) || null, tarif: null,
+      cni_numero: clean(b.cni_numero, 60).toUpperCase(),
     };
-    const prev = (await query('SELECT id, photo, statut FROM prestataires WHERE user_id = $1', [req.user.id])).rows[0];
     let photo = prev?.photo ?? null;
-    if (req.file) { removePhoto(photo); photo = `/uploads/prestataires/${req.file.filename}`; }
-    if (b.retirer_photo === '1' && !req.file) { removePhoto(photo); photo = null; }
-    const cols = [...Object.keys(v), 'photo'];
-    const vals = [...Object.values(v), photo];
+    if (file('photo')) { removePhoto(photo); photo = `/uploads/prestataires/${file('photo').filename}`; }
+    if (b.retirer_photo === '1' && !file('photo')) { removePhoto(photo); photo = null; }
+
+    // Nouvelle pièce d'identité : l'ancien fichier est supprimé et le profil doit être revérifié
+    const newCni = !!(file('cni_recto') || file('cni_verso'));
+    let cniRecto = prev?.cni_recto ?? null; let cniVerso = prev?.cni_verso ?? null;
+    if (file('cni_recto')) { removeCni(UPLOADS, cniRecto); cniRecto = file('cni_recto').filename; }
+    if (file('cni_verso')) { removeCni(UPLOADS, cniVerso); cniVerso = file('cni_verso').filename; }
+
+    const cols = [...Object.keys(v), 'photo', 'cni_recto', 'cni_verso'];
+    const vals = [...Object.values(v), photo, cniRecto, cniVerso];
+    const extra = ['conditions_acceptees_le=now()'];
+    if (newCni) extra.push('cni_transmise_le=now()');
 
     let row;
     if (prev) {
-      // Un profil refusé repasse en validation après modification
-      const statut = prev.statut === 'refuse' ? 'en_attente' : prev.statut;
-      row = (await query(`UPDATE prestataires SET ${cols.map((c, i) => `${c}=$${i + 1}`).join(', ')}, statut=$${cols.length + 1}, updated_at=now()
+      // Profil refusé modifié, ou pièce d'identité changée : retour en validation
+      const statut = prev.statut === 'refuse' || (newCni && prev.statut !== 'suspendu') ? 'en_attente' : prev.statut;
+      if (newCni) extra.push('verifie=false', 'identite_verifiee_le=NULL', 'verifie_par=NULL');
+      if (statut === 'en_attente') extra.push('motif_refus=NULL');
+      row = (await query(`UPDATE prestataires SET ${cols.map((c, i) => `${c}=$${i + 1}`).join(', ')}, statut=$${cols.length + 1}, ${extra.join(', ')}, updated_at=now()
         WHERE id=$${cols.length + 2} RETURNING *`, [...vals, statut, prev.id])).rows[0];
     } else {
-      row = (await query(`INSERT INTO prestataires (user_id, ${cols.join(', ')}) VALUES ($1, ${cols.map((_, i) => `$${i + 2}`).join(', ')}) RETURNING *`,
-        [req.user.id, ...vals])).rows[0];
+      row = (await query(`INSERT INTO prestataires (user_id, ${cols.join(', ')}, conditions_acceptees_le, cni_transmise_le)
+        VALUES ($1, ${cols.map((_, i) => `$${i + 2}`).join(', ')}, now(), now()) RETURNING *`, [req.user.id, ...vals])).rows[0];
     }
+    // L'inscription vaut aussi acceptation des conditions côté client
+    await query('UPDATE users SET quotidien_conditions_version = $1, quotidien_accepte_le = now() WHERE id = $2', [CONDITIONS_VERSION, req.user.id]);
     const message = row.statut === 'valide'
       ? 'Votre profil a bien été mis à jour.'
-      : 'Votre profil a bien été enregistré. Il sera visible dans l’annuaire dès sa validation par notre équipe.';
-    res.status(prev ? 200 : 201).json({ message, profil: row });
+      : 'Votre profil a bien été enregistré. Notre équipe va vérifier votre pièce d’identité : votre profil sera visible dès sa validation.';
+    res.status(prev ? 200 : 201).json({ message, profil: ownProfile(row) });
   }));
 
   router.delete('/mon-profil-prestataire', requireAuth, wrap(async (req, res) => {
-    const { rows } = await query('DELETE FROM prestataires WHERE user_id = $1 RETURNING photo', [req.user.id]);
+    const { rows } = await query('DELETE FROM prestataires WHERE user_id = $1 RETURNING photo, cni_recto, cni_verso', [req.user.id]);
     removePhoto(rows[0]?.photo);
+    removeCni(UPLOADS, rows[0]?.cni_recto); removeCni(UPLOADS, rows[0]?.cni_verso);
     res.status(204).end();
   }));
 
   // ── Fiche publique d'un prestataire (+ coordonnées et avis)
-  router.get('/prestataires/:id', optionalAuth, wrap(async (req, res) => {
+  router.get('/prestataires/:id', requireQuotidien, wrap(async (req, res) => {
     const id = num(req.params.id);
     if (!id) return res.status(404).json({ message: 'Prestataire introuvable.' });
     const { rows } = await query(`SELECT ${PUBLIC_COLS}, p.telephone, p.whatsapp, p.email, p.latitude, p.longitude, p.user_id, p.statut,
@@ -156,7 +243,7 @@ export function prestatairesRouter({ UPLOADS, requireAuth, optionalAuth }) {
   }));
 
   // ── Laisser (ou modifier) un avis
-  router.post('/prestataires/:id/avis', requireAuth, wrap(async (req, res) => {
+  router.post('/prestataires/:id/avis', requireQuotidien, wrap(async (req, res) => {
     const id = num(req.params.id);
     const note = num(req.body?.note);
     const commentaire = clean(req.body?.commentaire, 1500);

@@ -9,7 +9,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { query } from './db/pool.js';
 import { adminRouter } from './admin.js';
-import { prestatairesRouter } from './prestataires.js';
+import { QUOTIDIEN_MIGRATION, prestatairesRouter } from './prestataires.js';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS = path.join(dir, '..', 'uploads');
@@ -190,4 +190,7 @@ if (fs.existsSync(dist)) {
 }
 
 const port = Number(process.env.PORT || 4100);
-app.listen(port, () => console.log(`API Kapi Consult sur http://localhost:${port}`));
+// Met à jour les tables existantes (colonnes de Quotidien) avant d'accepter des requêtes
+query(QUOTIDIEN_MIGRATION)
+  .catch((e) => console.error('Migration Quotidien impossible :', e.message))
+  .finally(() => app.listen(port, () => console.log(`API Kapi Consult sur http://localhost:${port}`)));

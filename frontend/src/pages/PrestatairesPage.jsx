@@ -4,6 +4,8 @@ import {
   ArrowRight, BadgeCheck, SlidersHorizontal, ChevronLeft, ChevronRight, Loader2, LocateFixed, MapPin, RotateCcw, Search, ShieldCheck, Star, UserPlus, Users, X,
 } from 'lucide-react';
 import { useApi } from '../lib/api';
+import { useAuth } from '../lib/auth';
+import { MiseEnRelation } from '../components/quotidien';
 import { Empty, PageBanner, Reveal, SecTitle } from '../components/ui';
 import { ProCard } from '../components/annuaire';
 import { ANNUAIRE, METIERS, METIERS_POPULAIRES, RAYONS, VILLES, metierIcon } from '../content/prestataires';
@@ -12,6 +14,7 @@ const NOTES = [['', 'Toutes'], ['3', '3+'], ['4', '4+'], ['4.5', '4,5+']];
 const TRIS = [['', 'Pertinence'], ['note', 'Mieux notés'], ['recent', 'Plus récents'], ['distance', 'Plus proches']];
 
 export default function PrestatairesPage() {
+  const { token } = useAuth();
   const [params, setParams] = useSearchParams();
   const get = (k) => params.get(k) || '';
   const [q, setQ] = useState(get('q'));
@@ -21,8 +24,8 @@ export default function PrestatairesPage() {
   useEffect(() => { setQ(get('q')); setVille(get('ville')); }, [params]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const apiQuery = new URLSearchParams([...params].filter(([, v]) => v)).toString();
-  const { data, loading } = useApi(`/prestataires?${apiQuery}`);
-  const { data: filtres } = useApi('/prestataires/filtres');
+  const { data, loading } = useApi(`/prestataires?${apiQuery}`, token);
+  const { data: filtres } = useApi('/prestataires/filtres', token);
 
   const update = (patch, keepPage = false) => {
     const next = new URLSearchParams(params);
@@ -71,7 +74,7 @@ export default function PrestatairesPage() {
         </form>
         {geo.error && <p className="finder__error">{geo.error}</p>}
         <div className="finder__trust">
-          <span><ShieldCheck size={16} />Profils validés par Kapi Consult</span>
+          <span><ShieldCheck size={16} />Identité des prestataires vérifiée</span>
           <span><Star size={16} />Avis de vrais clients</span>
           <span><Users size={16} />{filtres?.total ?? '…'} professionnel{filtres?.total > 1 ? 's' : ''} inscrit{filtres?.total > 1 ? 's' : ''}</span>
         </div>
@@ -79,6 +82,7 @@ export default function PrestatairesPage() {
 
       <section className="sec sec--bg" id="resultats">
         <div className="wrap">
+          <MiseEnRelation compact />
           {!filtered && (
             <div className="tabs pro-popular" aria-label="Métiers recherchés">
               {METIERS_POPULAIRES.map((m) => {

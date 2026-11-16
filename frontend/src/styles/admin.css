@@ -169,3 +169,19 @@ body.is-admin { padding-top: 0; }
 .adm-dl dt { color: var(--muted); display: flex; align-items: center; gap: 6px; }
 .adm-dl dd { color: var(--ink); }
 .adm-dl a { color: var(--brand); }
+
+/* Vérification d'identité des prestataires */
+.verif { padding: 18px; border-radius: 12px; background: var(--bg); border: 1px solid var(--line); }
+.verif h4 { display: flex; align-items: center; gap: 8px; margin-bottom: 14px; font-size: 15px; }
+.verif__docs { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+.cni-view { margin: 0; }
+.cni-view__frame { aspect-ratio: 1.58; border-radius: 10px; background: var(--white); border: 1px solid var(--line); display: grid; place-items: center; overflow: hidden; color: var(--muted); }
+.cni-view__frame a { display: block; width: 100%; height: 100%; }
+.cni-view__frame img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
+.cni-view__empty { display: flex !important; flex-direction: column; align-items: center; justify-content: center; gap: 6px; font-size: 13px; color: var(--muted); }
+.cni-view figcaption { margin-top: 6px; font-size: 12.5px; color: var(--muted); }
+.verif__list { margin: 16px 0 12px; padding-left: 18px; display: grid; gap: 4px; font-size: 13.5px; color: var(--text); }
+.verif__ok { align-items: flex-start; padding: 10px 12px; border-radius: 8px; background: var(--white); border: 1px solid var(--line); font-size: 14px; cursor: pointer; }
+.verif__ok input { flex: none; margin-top: 2px; }
+.verif__motif { display: grid; gap: 6px; margin-top: 12px; font-size: 13px; color: var(--muted); }
+@media (max-width: 520px) { .verif__docs { grid-template-columns: 1fr; } }
