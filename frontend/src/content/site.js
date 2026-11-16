@@ -15,21 +15,21 @@ export const NAV = [
   { label: 'Accueil', to: '/' },
   { label: 'À propos', to: '/a-propos' },
   { label: 'Nos activités', to: '/nos-activites' },
-  {
-    label: 'Nos solutions',
-    children: [
-      { label: 'Kapi board select', to: null, desc: 'Bientôt disponible' },
-      { label: 'Kapi data', to: null, desc: 'Bientôt disponible' },
-    ],
-  },
+  // Menu « Nos solutions » masqué (Kapi board select, Kapi data : bientôt disponibles)
   { label: 'Nos produits', to: '/nos-produits' },
   {
     label: 'Publications',
     children: [
       { label: 'Actualités', to: '/actualites', desc: 'Restez informé de nos dernières nouvelles et événements.' },
       { label: 'Blog', to: '/blog', desc: 'Conseils, tendances RH et articles de fond par nos experts.' },
-      { label: 'Bons Plans', to: '/bons-plans', desc: 'Offres spéciales, promotions et avantages exclusifs sélectionnés pour vous.' },
       { label: 'FAQ', to: '/faq', desc: 'Trouvez rapidement les réponses à vos questions.' },
+    ],
+  },
+  {
+    label: 'Bons Plans',
+    children: [
+      { label: 'Offres & promotions', to: '/bons-plans', desc: 'Offres spéciales, promotions et avantages exclusifs sélectionnés pour vous.' },
+      { label: 'Quotidien', to: '/prestataires', desc: 'Trouvez un professionnel de confiance près de chez vous.' },
     ],
   },
   {

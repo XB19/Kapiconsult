@@ -120,15 +120,15 @@ p + p { margin-top: .9em; }
 /* ── En-tête fixe ───────────────────────────── */
 .header { position: fixed; top: 0; left: 0; right: 0; z-index: 100; height: var(--head-h); background: var(--white); border-bottom: 1px solid var(--line); transition: box-shadow .25s; }
 .header.is-scrolled { box-shadow: 0 6px 24px rgba(18, 22, 79, .1); }
-.header .wrap { height: 100%; display: flex; align-items: center; gap: 16px; }
+.header .wrap { height: 100%; display: flex; align-items: center; gap: 24px; }
 .logo { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 .logo__mark { width: 42px; height: 42px; border: 2px solid var(--gold); border-radius: 3px; padding: 3px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
 .logo__mark span { border-radius: 1px; background: linear-gradient(135deg, #6b7fe8, var(--brand)); }
 .logo__text { font-family: var(--head-font); font-size: 20px; font-weight: 700; color: var(--ink); line-height: 1.1; }
 .logo__text small { display: block; font-size: 11px; font-weight: 500; color: var(--gold); letter-spacing: .04em; }
-.nav { display: flex; align-items: center; gap: 2px; margin-left: auto; height: 100%; }
+.nav { flex: 1; display: flex; align-items: center; justify-content: center; gap: clamp(2px, 0.6vw, 10px); height: 100%; }
 .nav__item { position: relative; height: 100%; display: flex; align-items: center; }
-.nav__link { display: flex; align-items: center; gap: 3px; padding: 8px 9px; font-family: var(--head-font); font-size: 14px; font-weight: 500; color: var(--ink); white-space: nowrap; transition: color .2s; }
+.nav__link { display: flex; align-items: center; gap: 3px; padding: 8px clamp(6px, 0.55vw, 10px); font-family: var(--head-font); font-size: 14px; font-weight: 500; color: var(--ink); white-space: nowrap; transition: color .2s; }
 .nav__link:hover, .nav__item:focus-within > .nav__link { color: var(--gold); }
 .nav__link.is-active { color: var(--gold); font-weight: 600; }
 .nav__panel { position: absolute; top: 100%; left: 0; min-width: 270px; background: var(--white); border-top: 3px solid var(--gold); box-shadow: var(--shadow-lg); padding: 10px 0; opacity: 0; visibility: hidden; transform: translateY(8px); transition: all .2s ease; }

@@ -7,7 +7,7 @@ import { useAuth } from '../lib/auth';
 import { NAV } from '../content/site';
 
 const SUB_ICONS = {
-  'Kapi board select': LayoutGrid, 'Kapi data': Database, 'Actualités': Newspaper, Blog: PenLine, 'Bons Plans': Tag,
+  'Kapi board select': LayoutGrid, 'Kapi data': Database, 'Actualités': Newspaper, Blog: PenLine, 'Offres & promotions': Tag, Quotidien: Wrench,
   FAQ: HelpCircle, "Offres d'emploi": Briefcase, 'Candidature spontanée': Send,
 };
 
@@ -45,11 +45,12 @@ export default function Header() {
     return () => { document.body.style.overflow = ''; };
   }, [open]);
 
-  const groupActive = (item) => item.children?.some((c) => c.to === pathname);
+  const isOn = (to) => to && (pathname === to || pathname.startsWith(to + '/'));
+  const groupActive = (item) => item.children?.some((c) => isOn(c.to));
   const sub = (c, cls) => {
     const Icon = SUB_ICONS[c.label] || ChevronDown;
     return c.to
-      ? <Link key={c.label} to={c.to} className={pathname === c.to ? 'is-active' : ''}><Icon size={16} />{c.label}</Link>
+      ? <Link key={c.label} to={c.to} className={isOn(c.to) ? 'is-active' : ''}><Icon size={16} />{c.label}</Link>
       : <span key={c.label} className={cls}><Icon size={16} />{c.label}<em>Bientôt</em></span>;
   };
 
@@ -72,7 +73,6 @@ export default function Header() {
               </div>
             ))}
           </nav>
-          <NavLink to="/prestataires" className={({ isActive }) => `btn btn--outline btn--sm header__account header__pros ${isActive ? 'is-active' : ''}`}><Wrench size={16} />Prestataires</NavLink>
           <Link to={account} className="btn btn--gold btn--sm header__account"><UserCircle size={17} />Mon Compte</Link>
           <button className="burger" onClick={() => setOpen((o) => !o)} aria-label="Menu" aria-expanded={open}>{open ? <X size={22} /> : <Menu size={22} />}</button>
         </div>
@@ -93,8 +93,7 @@ export default function Header() {
             )}
           </div>
         ))}
-        <Link to="/prestataires" className="btn btn--outline btn--block" style={{ marginTop: 24 }}><Wrench size={18} />Trouver un prestataire</Link>
-        <Link to={account} className="btn btn--gold btn--block" style={{ marginTop: 10 }}><UserCircle size={18} />Mon Compte</Link>
+        <Link to={account} className="btn btn--gold btn--block" style={{ marginTop: 24 }}><UserCircle size={18} />Mon Compte</Link>
       </nav>
     </>
   );

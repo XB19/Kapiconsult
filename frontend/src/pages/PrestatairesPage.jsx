@@ -50,7 +50,7 @@ export default function PrestatairesPage() {
 
   return (
     <main>
-      <PageBanner image="/storage/kapi/domaine_industrie.jpg" label={ANNUAIRE.label} title={ANNUAIRE.title} sub={ANNUAIRE.sub} crumbs={[{ label: 'Prestataires' }]}>
+      <PageBanner image="/storage/kapi/domaine_industrie.jpg" label={ANNUAIRE.label} title={ANNUAIRE.title} sub={ANNUAIRE.sub} crumbs={[{ label: 'Bons Plans' }, { label: 'Quotidien' }]}>
         <form className="finder" onSubmit={search} role="search">
           <label className="finder__field">
             <Search size={18} />

@@ -100,7 +100,7 @@ export default function PrestatairePage() {
     <main className="sec sec--bg pro-page">
       <div className="wrap">
         <nav className="crumbs crumbs--dark" aria-label="Fil d'Ariane">
-          <Link to="/">Accueil</Link><ChevronRight size={14} /><Link to="/prestataires">Prestataires</Link><ChevronRight size={14} />
+          <Link to="/">Accueil</Link><ChevronRight size={14} /><Link to="/prestataires">Quotidien</Link><ChevronRight size={14} />
           <Link to={`/prestataires?metier=${encodeURIComponent(p.metier)}`}>{p.metier}</Link><ChevronRight size={14} /><span>{p.nom_affiche}</span>
         </nav>
 

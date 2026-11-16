@@ -111,7 +111,7 @@ export default function DevenirPrestatairePage() {
   return (
     <main>
       <PageBanner image="/storage/kapi/domaine_industrie.jpg" label="Espace professionnel" title={state.profil ? 'Mon profil prestataire' : 'Inscrire mon activité'}
-        sub={ANNUAIRE.ctaText} crumbs={[{ label: 'Prestataires', to: '/prestataires' }, { label: state.profil ? 'Mon profil' : 'Inscription' }]} />
+        sub={ANNUAIRE.ctaText} crumbs={[{ label: 'Quotidien', to: '/prestataires' }, { label: state.profil ? 'Mon profil' : 'Inscription' }]} />
       <section className="sec sec--bg">
         <div className="wrap" style={{ maxWidth: 940 }}>
           {!user && <Gate />}

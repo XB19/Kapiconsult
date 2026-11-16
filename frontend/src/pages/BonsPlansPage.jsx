@@ -67,7 +67,7 @@ export default function BonsPlansPage() {
   return (
     <main>
       <PageBanner image="/storage/kapi/banner_articles.jpg" label="Kapi Consult" title="Bons Plans & ZenCard"
-        sub="Offres spéciales, promotions et avantages exclusifs sélectionnés pour vous." crumbs={[{ label: 'Publications' }, { label: 'Bons Plans' }]}>
+        sub="Offres spéciales, promotions et avantages exclusifs sélectionnés pour vous." crumbs={[{ label: 'Bons Plans' }, { label: 'Offres & promotions' }]}>
         <div style={{ display: 'flex', gap: 28, alignItems: 'center', flexWrap: 'wrap' }}>
           <button className="btn btn--gold" onClick={() => setZencard(true)}><CreditCard size={18} />Recharger ma ZenCard</button>
           <div style={{ display: 'flex', gap: 28 }}>
