@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Eye, EyeOff, FileText, LogIn, LogOut, Plus, UserPlus } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Eye, EyeOff, FileText, LogIn, LogOut, Plus, UserPlus, Wrench } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { dateFr } from '../lib/format';
@@ -34,6 +34,10 @@ function Password({ name, placeholder, invalid }) {
   );
 }
 
+// Page de retour après connexion (chemins internes uniquement)
+const nextPath = () => { const n = new URLSearchParams(window.location.search).get('next') || ''; return /^\/(?!\/)/.test(n) ? n : ''; };
+const withNext = (to) => (nextPath() ? `${to}?next=${encodeURIComponent(nextPath())}` : to);
+
 function useAuthSubmit(path) {
   const { login } = useAuth();
   const navigate = useNavigate();
@@ -45,8 +49,7 @@ function useAuthSubmit(path) {
     try {
       const data = await api(path, { method: 'POST', body: Object.fromEntries(new FormData(e.currentTarget)) });
       login(data);
-      const next = new URLSearchParams(window.location.search).get('next');
-      navigate(data.user.role === 'admin' ? (next || '/admin') : '/mon-compte');
+      navigate(nextPath() || (data.user.role === 'admin' ? '/admin' : '/mon-compte'));
     } catch (err) {
       setErrors(Object.keys(err.errors || {}).length ? err.errors : { email: 'Une erreur est survenue, merci de réessayer.' });
     } finally { setSending(false); }
@@ -57,7 +60,7 @@ function useAuthSubmit(path) {
 export function LoginPage() {
   const { user } = useAuth();
   const { errors, sending, submit } = useAuthSubmit('/auth/login');
-  if (user) return <Navigate to={user.role === 'admin' ? '/admin' : '/mon-compte'} replace />;
+  if (user) return <Navigate to={nextPath() || (user.role === 'admin' ? '/admin' : '/mon-compte')} replace />;
   return (
     <AuthShell title="Connexion" hl="Connexion" sub="Accédez à votre espace personnel">
       <form onSubmit={submit} className="form">
@@ -66,7 +69,7 @@ export function LoginPage() {
         <label className="check"><input type="checkbox" name="remember" /> Se souvenir de moi</label>
         <button type="submit" className="btn btn--block" disabled={sending}><LogIn size={17} />{sending ? 'Connexion…' : 'Se connecter'}</button>
       </form>
-      <p className="small muted" style={{ marginTop: 22, textAlign: 'center' }}>Pas encore de compte ? <Link to="/inscription" className="u-link" style={{ color: 'var(--brand)', fontWeight: 500 }}>S'inscrire</Link></p>
+      <p className="small muted" style={{ marginTop: 22, textAlign: 'center' }}>Pas encore de compte ? <Link to={withNext('/inscription')} className="u-link" style={{ color: 'var(--brand)', fontWeight: 500 }}>S'inscrire</Link></p>
       <p className="small" style={{ marginTop: 8, textAlign: 'center' }}><Link to="/" className="link" style={{ fontSize: 13.5 }}><ArrowLeft size={14} />Retour au site</Link></p>
     </AuthShell>
   );
@@ -75,9 +78,9 @@ export function LoginPage() {
 export function InscriptionPage() {
   const { user } = useAuth();
   const { errors, sending, submit } = useAuthSubmit('/auth/register');
-  if (user) return <Navigate to={user.role === 'admin' ? '/admin' : '/mon-compte'} replace />;
+  if (user) return <Navigate to={nextPath() || (user.role === 'admin' ? '/admin' : '/mon-compte')} replace />;
   return (
-    <AuthShell title="Créer un compte" hl="Créer" sub="Espace candidat — Kapi Consult">
+    <AuthShell title="Créer un compte" hl="Créer" sub={nextPath().startsWith('/prestataires') ? 'Espace professionnel — Kapi Consult' : 'Espace candidat — Kapi Consult'}>
       <form onSubmit={submit} className="form">
         <div className="form__row">
           <Field label="Prénom" name="prenom" required error={errors.prenom}><input id="prenom" name="prenom" className="input" required autoComplete="given-name" /></Field>
@@ -89,7 +92,7 @@ export function InscriptionPage() {
         <Field label="Confirmer le mot de passe" name="password_confirmation" required><Password name="password_confirmation" /></Field>
         <button type="submit" className="btn btn--block" disabled={sending}><UserPlus size={17} />{sending ? 'Création…' : 'Créer mon compte'}</button>
       </form>
-      <p className="small muted" style={{ marginTop: 22, textAlign: 'center' }}>Déjà un compte ? <Link to="/login" className="u-link" style={{ color: 'var(--brand)', fontWeight: 500 }}>Se connecter</Link></p>
+      <p className="small muted" style={{ marginTop: 22, textAlign: 'center' }}>Déjà un compte ? <Link to={withNext('/login')} className="u-link" style={{ color: 'var(--brand)', fontWeight: 500 }}>Se connecter</Link></p>
     </AuthShell>
   );
 }
@@ -120,6 +123,14 @@ export function MonComptePage() {
             <p className="small muted">{user.email}{user.telephone ? ` · ${user.telephone}` : ''}</p>
           </div>
           <button className="btn btn--outline btn--sm" onClick={() => { logout(); navigate('/'); }}><LogOut size={15} />Se déconnecter</button>
+        </div>
+        <div className="box" style={{ display: 'flex', gap: 18, alignItems: 'center', flexWrap: 'wrap', marginBottom: 24, borderTop: '3px solid var(--gold)' }}>
+          <span className="feature__ico" style={{ margin: 0, background: 'var(--gold-soft)', color: 'var(--gold)' }}><Wrench size={24} /></span>
+          <div style={{ flex: '1 1 260px' }}>
+            <b style={{ color: 'var(--ink)', fontFamily: 'var(--head-font)', fontSize: 17 }}>Espace professionnel</b>
+            <p className="small muted">Artisan, technicien ou prestataire ? Créez ou modifiez votre fiche dans l’annuaire Kapi Consult.</p>
+          </div>
+          <Link to="/prestataires/inscription" className="btn btn--outline btn--sm">Mon profil prestataire <ArrowRight size={15} /></Link>
         </div>
         <div className="box">
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12, flexWrap: 'wrap', marginBottom: 20 }}>

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
 import {
-  ChevronDown, Menu, X, UserCircle, Newspaper, PenLine, Tag, HelpCircle, Briefcase, Send, LayoutGrid, Database,
+  ChevronDown, Menu, X, UserCircle, Wrench, Newspaper, PenLine, Tag, HelpCircle, Briefcase, Send, LayoutGrid, Database,
 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { NAV } from '../content/site';
@@ -72,6 +72,7 @@ export default function Header() {
               </div>
             ))}
           </nav>
+          <NavLink to="/prestataires" className={({ isActive }) => `btn btn--outline btn--sm header__account header__pros ${isActive ? 'is-active' : ''}`}><Wrench size={16} />Prestataires</NavLink>
           <Link to={account} className="btn btn--gold btn--sm header__account"><UserCircle size={17} />Mon Compte</Link>
           <button className="burger" onClick={() => setOpen((o) => !o)} aria-label="Menu" aria-expanded={open}>{open ? <X size={22} /> : <Menu size={22} />}</button>
         </div>
@@ -92,7 +93,8 @@ export default function Header() {
             )}
           </div>
         ))}
-        <Link to={account} className="btn btn--gold btn--block" style={{ marginTop: 24 }}><UserCircle size={18} />Mon Compte</Link>
+        <Link to="/prestataires" className="btn btn--outline btn--block" style={{ marginTop: 24 }}><Wrench size={18} />Trouver un prestataire</Link>
+        <Link to={account} className="btn btn--gold btn--block" style={{ marginTop: 10 }}><UserCircle size={18} />Mon Compte</Link>
       </nav>
     </>
   );

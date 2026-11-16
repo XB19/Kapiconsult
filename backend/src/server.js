@@ -9,6 +9,7 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { query } from './db/pool.js';
 import { adminRouter } from './admin.js';
+import { prestatairesRouter } from './prestataires.js';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS = path.join(dir, '..', 'uploads');
@@ -165,6 +166,10 @@ app.post('/api/candidatures', optionalAuth, upload.fields([{ name: 'cv', maxCoun
   );
   res.status(201).json({ message: 'Votre candidature a bien été envoyée. Nous vous contacterons dès qu’une opportunité correspondra à votre profil.' });
 }));
+
+// ───────── Annuaire des prestataires
+app.use('/uploads/prestataires', express.static(path.join(UPLOADS, 'prestataires'), { maxAge: '7d' }));
+app.use('/api', prestatairesRouter({ UPLOADS, requireAuth, optionalAuth }));
 
 // ───────── Administration (réservée aux comptes admin)
 app.use('/uploads/media', express.static(path.join(UPLOADS, 'media'), { maxAge: '7d' }));

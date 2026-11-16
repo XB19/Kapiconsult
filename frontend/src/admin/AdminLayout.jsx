@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, NavLink, Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
-  LayoutDashboard, Newspaper, Package, Briefcase, HelpCircle, Mail, FileUser, Users, ExternalLink, LogOut, Menu, ShieldAlert,
+  LayoutDashboard, Newspaper, Package, Briefcase, HelpCircle, Mail, FileUser, Users, ExternalLink, LogOut, Menu, ShieldAlert, Wrench, Star,
 } from 'lucide-react';
 import { useAuth } from '../lib/auth';
 import { LogoMark } from '../components/Header';
@@ -18,6 +18,9 @@ export const ADMIN_NAV = [
   { group: 'Demandes' },
   { to: '/admin/messages', label: 'Messages', icon: Mail, badge: 'messages_non_lus' },
   { to: '/admin/candidatures', label: 'Candidatures', icon: FileUser, badge: 'candidatures_en_cours' },
+  { group: 'Annuaire' },
+  { to: '/admin/prestataires', label: 'Prestataires', icon: Wrench, badge: 'prestataires_en_attente' },
+  { to: '/admin/avis', label: 'Avis clients', icon: Star },
   { group: 'Accès' },
   { to: '/admin/utilisateurs', label: 'Utilisateurs', icon: Users },
 ];

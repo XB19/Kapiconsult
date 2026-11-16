@@ -8,7 +8,8 @@
     "start": "node src/server.js",
     "db:setup": "node src/db/setup.js",
     "admin:create": "node src/db/create-admin.js",
-    "db:reset": "node src/db/setup.js --force"
+    "db:reset": "node src/db/setup.js --force",
+    "demo:annuaire": "node src/db/demo-annuaire.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

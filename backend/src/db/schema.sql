@@ -91,3 +91,45 @@ CREATE TABLE IF NOT EXISTS candidatures (
   statut     VARCHAR(20)  NOT NULL DEFAULT 'en_cours',
   created_at TIMESTAMPTZ  NOT NULL DEFAULT now()
 );
+
+-- Annuaire des prestataires (artisans, techniciens, professionnels)
+CREATE TABLE IF NOT EXISTS prestataires (
+  id           SERIAL PRIMARY KEY,
+  user_id      INTEGER UNIQUE REFERENCES users(id) ON DELETE CASCADE,
+  nom_affiche  VARCHAR(160) NOT NULL,
+  metier       VARCHAR(80)  NOT NULL,
+  specialites  TEXT[]       NOT NULL DEFAULT '{}',
+  description  TEXT         NOT NULL,
+  experience   INTEGER      NOT NULL DEFAULT 0,
+  telephone    VARCHAR(40)  NOT NULL,
+  whatsapp     VARCHAR(40),
+  email        VARCHAR(190),
+  pays         VARCHAR(60)  NOT NULL DEFAULT 'Togo',
+  ville        VARCHAR(80)  NOT NULL,
+  quartier     VARCHAR(120),
+  latitude     DOUBLE PRECISION,
+  longitude    DOUBLE PRECISION,
+  rayon_km     INTEGER      NOT NULL DEFAULT 10,
+  deplacement  BOOLEAN      NOT NULL DEFAULT true,
+  disponibilite VARCHAR(160),
+  tarif        VARCHAR(160),
+  photo        VARCHAR(255),
+  statut       VARCHAR(20)  NOT NULL DEFAULT 'en_attente' CHECK (statut IN ('en_attente','valide','refuse','suspendu')),
+  verifie      BOOLEAN      NOT NULL DEFAULT false,
+  vues         INTEGER      NOT NULL DEFAULT 0,
+  demo         BOOLEAN      NOT NULL DEFAULT false, -- profil de démonstration (npm run demo:annuaire)
+  created_at   TIMESTAMPTZ  NOT NULL DEFAULT now(),
+  updated_at   TIMESTAMPTZ  NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS prestataires_recherche ON prestataires (statut, metier, ville);
+
+CREATE TABLE IF NOT EXISTS avis (
+  id             SERIAL PRIMARY KEY,
+  prestataire_id INTEGER NOT NULL REFERENCES prestataires(id) ON DELETE CASCADE,
+  user_id        INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  note           SMALLINT NOT NULL CHECK (note BETWEEN 1 AND 5),
+  commentaire    TEXT,
+  visible        BOOLEAN NOT NULL DEFAULT true,
+  created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (prestataire_id, user_id)
+);

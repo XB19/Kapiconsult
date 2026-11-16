@@ -105,7 +105,10 @@ export function adminRouter({ UPLOADS }) {
       (SELECT count(*) FROM contacts WHERE NOT lu)::int AS messages_non_lus,
       (SELECT count(*) FROM candidatures)::int AS candidatures,
       (SELECT count(*) FROM candidatures WHERE statut='en_cours')::int AS candidatures_en_cours,
-      (SELECT count(*) FROM users)::int AS utilisateurs`, [today]);
+      (SELECT count(*) FROM users)::int AS utilisateurs,
+      (SELECT count(*) FROM prestataires)::int AS prestataires,
+      (SELECT count(*) FROM prestataires WHERE statut='en_attente')::int AS prestataires_en_attente,
+      (SELECT count(*) FROM avis)::int AS avis`, [today]);
     const messages = await query('SELECT id, prenom, nom, email, sujet, lu, created_at FROM contacts ORDER BY created_at DESC LIMIT 5');
     const candidatures = await query('SELECT id, prenom, nom, domaine, statut, created_at FROM candidatures ORDER BY created_at DESC LIMIT 5');
     const parMois = await query(`SELECT to_char(date_trunc('month', created_at), 'YYYY-MM') AS mois, count(*)::int AS n
@@ -226,6 +229,48 @@ export function adminRouter({ UPLOADS }) {
   router.delete('/users/:id', wrap(async (req, res) => {
     if (Number(req.params.id) === req.admin.id) return res.status(422).json({ message: 'Vous ne pouvez pas supprimer votre propre compte.' });
     await query('DELETE FROM users WHERE id=$1', [req.params.id]);
+    res.status(204).end();
+  }));
+
+  // ── Annuaire des prestataires : validation des profils et modération des avis
+  const PRESTA_STATUTS = ['en_attente', 'valide', 'refuse', 'suspendu'];
+  router.get('/prestataires', wrap(async (_req, res) => {
+    res.json((await query(`SELECT p.*, u.email AS compte_email, u.prenom AS compte_prenom, u.nom AS compte_nom,
+      (SELECT round(avg(note)::numeric, 1)::float FROM avis a WHERE a.prestataire_id = p.id AND a.visible) AS note,
+      (SELECT count(*)::int FROM avis a WHERE a.prestataire_id = p.id) AS nb_avis
+      FROM prestataires p LEFT JOIN users u ON u.id = p.user_id
+      ORDER BY (p.statut = 'en_attente') DESC, p.created_at DESC`)).rows);
+  }));
+  router.patch('/prestataires/:id', wrap(async (req, res) => {
+    const sets = []; const params = [];
+    if (req.body?.statut !== undefined) {
+      if (!PRESTA_STATUTS.includes(req.body.statut)) return res.status(422).json({ message: 'Statut invalide.' });
+      params.push(req.body.statut); sets.push(`statut=$${params.length}`);
+    }
+    if (req.body?.verifie !== undefined) { params.push(!!req.body.verifie); sets.push(`verifie=$${params.length}`); }
+    if (!sets.length) return res.status(422).json({ message: 'Aucune modification.' });
+    params.push(req.params.id);
+    const { rows } = await query(`UPDATE prestataires SET ${sets.join(', ')}, updated_at=now() WHERE id=$${params.length} RETURNING id, statut, verifie`, params);
+    if (!rows[0]) return res.status(404).json({ message: 'Prestataire introuvable.' });
+    res.json(rows[0]);
+  }));
+  router.delete('/prestataires/:id', wrap(async (req, res) => {
+    const { rows } = await query('DELETE FROM prestataires WHERE id=$1 RETURNING photo', [req.params.id]);
+    const photo = rows[0]?.photo;
+    if (photo?.startsWith('/uploads/prestataires/')) fs.rm(path.join(UPLOADS, 'prestataires', path.basename(photo)), { force: true }, () => {});
+    res.status(204).end();
+  }));
+  router.get('/avis', wrap(async (_req, res) => {
+    res.json((await query(`SELECT a.*, p.nom_affiche, p.metier, u.prenom, u.nom, u.email
+      FROM avis a JOIN prestataires p ON p.id = a.prestataire_id JOIN users u ON u.id = a.user_id ORDER BY a.created_at DESC`)).rows);
+  }));
+  router.patch('/avis/:id', wrap(async (req, res) => {
+    const { rows } = await query('UPDATE avis SET visible=$1 WHERE id=$2 RETURNING id, visible', [!!req.body?.visible, req.params.id]);
+    if (!rows[0]) return res.status(404).json({ message: 'Avis introuvable.' });
+    res.json(rows[0]);
+  }));
+  router.delete('/avis/:id', wrap(async (req, res) => {
+    await query('DELETE FROM avis WHERE id=$1', [req.params.id]);
     res.status(204).end();
   }));
 

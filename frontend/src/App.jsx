@@ -15,10 +15,14 @@ import ContactPage from './pages/ContactPage';
 import CandidaturePage from './pages/CandidaturePage';
 import { LoginPage, InscriptionPage, MonComptePage } from './pages/AuthPages';
 import NotFoundPage from './pages/NotFoundPage';
+import PrestatairesPage from './pages/PrestatairesPage';
+import PrestatairePage from './pages/PrestatairePage';
+import DevenirPrestatairePage from './pages/DevenirPrestatairePage';
 import AdminLayout from './admin/AdminLayout';
 import Dashboard from './admin/Dashboard';
 import { ArticlesAdmin, ProduitsAdmin, OffresAdmin, FaqAdmin } from './admin/Contents';
 import { MessagesAdmin, CandidaturesAdmin, UsersAdmin } from './admin/Requests';
+import { PrestatairesAdmin, AvisAdmin } from './admin/Annuaire';
 
 export default function App() {
   return (
@@ -29,6 +33,8 @@ export default function App() {
         <Route path="produits" element={<ProduitsAdmin />} />
         <Route path="offres" element={<OffresAdmin />} />
         <Route path="faq" element={<FaqAdmin />} />
+        <Route path="prestataires" element={<PrestatairesAdmin />} />
+        <Route path="avis" element={<AvisAdmin />} />
         <Route path="messages" element={<MessagesAdmin />} />
         <Route path="candidatures" element={<CandidaturesAdmin />} />
         <Route path="utilisateurs" element={<UsersAdmin />} />
@@ -45,6 +51,9 @@ export default function App() {
         <Route path="nos-produits/:slug" element={<ProduitPage />} />
         <Route path="offres" element={<OffresPage />} />
         <Route path="faq" element={<FaqPage />} />
+        <Route path="prestataires" element={<PrestatairesPage />} />
+        <Route path="prestataires/inscription" element={<DevenirPrestatairePage />} />
+        <Route path="prestataires/:id" element={<PrestatairePage />} />
         <Route path="contact" element={<ContactPage />} />
         <Route path="candidature-spontanee" element={<CandidaturePage />} />
         <Route path="login" element={<LoginPage />} />
