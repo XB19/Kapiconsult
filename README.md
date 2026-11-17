@@ -32,6 +32,15 @@ articles, FAQ, Offres d'emploi (recherche/filtres), Candidature spontanée (envo
 `articles`, `produits`, `offres`, `faqs` (contenu du site), `contacts`, `candidatures`, `users` (données envoyées par les visiteurs).
 Les CV envoyés sont stockés dans `backend/uploads/`.
 
+## Connexion avec Google ou Apple (iCloud)
+
+Les pages Connexion et Inscription proposent « Continuer avec Google » et « Continuer avec Apple » au-dessus du formulaire email (toujours disponible, notamment pour l'administrateur). Un bouton n'apparaît que si son fournisseur est configuré dans `backend/.env` (ou `.env` pour Docker), puis l'API redémarrée.
+
+- **Google** : sur https://console.cloud.google.com → API et services → Identifiants → *Créer un ID client OAuth* de type « Application Web ». Dans « Origines JavaScript autorisées », ajouter `http://localhost:5175` (et `http://localhost`) ainsi que l'adresse du site en ligne. Copier l'ID client dans `GOOGLE_CLIENT_ID`.
+- **Apple** : nécessite un compte Apple Developer (payant). Sur https://developer.apple.com → Certificates, IDs & Profiles : créer un *App ID* avec « Sign in with Apple », puis un *Services ID* lié à cet App ID ; y déclarer le domaine du site et l'URL de retour (ex. `https://kapiconsult.tg/login`). Renseigner `APPLE_CLIENT_ID` (le Services ID) et `APPLE_REDIRECT_URI`. Apple refuse `localhost` : à tester sur le domaine en ligne (HTTPS).
+
+Si l'email du compte Google / Apple correspond à un compte existant, les deux sont reliés automatiquement. Les comptes créés ainsi n'ont pas de mot de passe.
+
 ## Administration du site
 
 Espace réservé : **http://localhost:5175/admin** (connexion avec un compte administrateur).

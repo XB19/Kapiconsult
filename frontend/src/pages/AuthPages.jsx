@@ -6,6 +6,7 @@ import { useAuth } from '../lib/auth';
 import { dateFr } from '../lib/format';
 import { Field } from '../components/forms';
 import { LogoMark } from '../components/Header';
+import { SocialLogin } from '../components/SocialLogin';
 import { Title } from '../components/ui';
 
 function AuthShell({ title, hl, sub, children }) {
@@ -43,26 +44,30 @@ function useAuthSubmit(path) {
   const navigate = useNavigate();
   const [errors, setErrors] = useState({});
   const [sending, setSending] = useState(false);
+  const finish = (data) => {
+    login(data);
+    navigate(nextPath() || (data.user.role === 'admin' ? '/admin' : '/mon-compte'));
+  };
   const submit = async (e) => {
     e.preventDefault();
     setSending(true); setErrors({});
     try {
       const data = await api(path, { method: 'POST', body: Object.fromEntries(new FormData(e.currentTarget)) });
-      login(data);
-      navigate(nextPath() || (data.user.role === 'admin' ? '/admin' : '/mon-compte'));
+      finish(data);
     } catch (err) {
       setErrors(Object.keys(err.errors || {}).length ? err.errors : { email: 'Une erreur est survenue, merci de réessayer.' });
     } finally { setSending(false); }
   };
-  return { errors, sending, submit };
+  return { errors, sending, submit, finish };
 }
 
 export function LoginPage() {
   const { user } = useAuth();
-  const { errors, sending, submit } = useAuthSubmit('/auth/login');
+  const { errors, sending, submit, finish } = useAuthSubmit('/auth/login');
   if (user) return <Navigate to={nextPath() || (user.role === 'admin' ? '/admin' : '/mon-compte')} replace />;
   return (
     <AuthShell title="Connexion" hl="Connexion" sub="Accédez à votre espace personnel">
+      <SocialLogin mode="login" onSuccess={finish} />
       <form onSubmit={submit} className="form">
         <Field label="Adresse email" name="email" error={errors.email}><input id="email" type="email" name="email" className={`input ${errors.email ? 'is-invalid' : ''}`} placeholder="votre@email.com" required autoComplete="email" /></Field>
         <Field label="Mot de passe" name="password"><Password name="password" placeholder="••••••••" /></Field>
@@ -77,10 +82,11 @@ export function LoginPage() {
 
 export function InscriptionPage() {
   const { user } = useAuth();
-  const { errors, sending, submit } = useAuthSubmit('/auth/register');
+  const { errors, sending, submit, finish } = useAuthSubmit('/auth/register');
   if (user) return <Navigate to={nextPath() || (user.role === 'admin' ? '/admin' : '/mon-compte')} replace />;
   return (
     <AuthShell title="Créer un compte" hl="Créer" sub={nextPath().startsWith('/prestataires') ? 'Espace professionnel — Kapi Consult' : 'Espace candidat — Kapi Consult'}>
+      <SocialLogin mode="register" onSuccess={finish} />
       <form onSubmit={submit} className="form">
         <div className="form__row">
           <Field label="Prénom" name="prenom" required error={errors.prenom}><input id="prenom" name="prenom" className="input" required autoComplete="given-name" /></Field>

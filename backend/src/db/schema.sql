@@ -6,7 +6,9 @@ CREATE TABLE IF NOT EXISTS users (
   nom           VARCHAR(120) NOT NULL,
   email         VARCHAR(190) NOT NULL UNIQUE,
   telephone     VARCHAR(40),
-  password_hash VARCHAR(255) NOT NULL,
+  password_hash VARCHAR(255),              -- vide pour les comptes Google / Apple
+  google_sub    VARCHAR(255) UNIQUE,
+  apple_sub     VARCHAR(255) UNIQUE,
   role          VARCHAR(20)  NOT NULL DEFAULT 'candidat',
   created_at    TIMESTAMPTZ  NOT NULL DEFAULT now()
 );

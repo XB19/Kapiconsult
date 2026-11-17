@@ -531,6 +531,13 @@ select.input { appearance: none; background: var(--white) url("data:image/svg+xm
 .auth__side h2 { color: var(--white); }
 .auth__main { display: grid; place-items: center; padding: 56px var(--gutter); background: var(--bg); }
 .auth__box { width: 100%; max-width: 460px; }
+.social { display: grid; gap: 12px; margin-bottom: 4px; }
+.social__google { min-height: 44px; display: flex; justify-content: center; }
+.social__apple { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; max-width: 400px; height: 40px; margin: 0 auto; border-radius: 4px; background: #000; color: #fff; font-family: 'Google Sans', Roboto, Arial, sans-serif; font-size: 14px; font-weight: 500; transition: background .2s; }
+.social__apple:hover { background: #222; }
+.social__apple:disabled { opacity: .55; cursor: not-allowed; }
+.social__sep { display: flex; align-items: center; gap: 14px; margin: 14px 0 10px; color: var(--muted); font-size: 13.5px; }
+.social__sep::before, .social__sep::after { content: ''; flex: 1; height: 1px; background: var(--line); }
 
 /* ── Adaptations ───────────────────────────── */
 @media (max-width: 1260px) {

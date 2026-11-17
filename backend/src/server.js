@@ -10,6 +10,7 @@ import jwt from 'jsonwebtoken';
 import { query } from './db/pool.js';
 import { adminRouter } from './admin.js';
 import { QUOTIDIEN_MIGRATION, prestatairesRouter } from './prestataires.js';
+import { SOCIAL_MIGRATION, socialAuthRouter } from './social-auth.js';
 
 const dir = path.dirname(fileURLToPath(import.meta.url));
 const UPLOADS = path.join(dir, '..', 'uploads');
@@ -56,11 +57,14 @@ app.post('/api/auth/register', wrap(async (req, res) => {
 app.post('/api/auth/login', wrap(async (req, res) => {
   const { email, password } = req.body || {};
   const { rows } = await query('SELECT * FROM users WHERE lower(email)=lower($1)', [email || '']);
-  if (!rows[0] || !(await bcrypt.compare(password || '', rows[0].password_hash))) {
+  // Les comptes créés avec Google / Apple n'ont pas de mot de passe
+  if (!rows[0]?.password_hash || !(await bcrypt.compare(password || '', rows[0].password_hash))) {
     return res.status(422).json({ errors: { email: 'Ces identifiants ne correspondent à aucun compte.' } });
   }
   res.json({ token: sign(rows[0]), user: publicUser(rows[0]) });
 }));
+
+app.use('/api', socialAuthRouter({ sign, publicUser, wrap }));
 
 app.get('/api/auth/me', requireAuth, wrap(async (req, res) => {
   const { rows } = await query('SELECT * FROM users WHERE id=$1', [req.user.id]);
@@ -190,7 +194,9 @@ if (fs.existsSync(dist)) {
 }
 
 const port = Number(process.env.PORT || 4100);
-// Met à jour les tables existantes (colonnes de Quotidien) avant d'accepter des requêtes
+// Met à jour les tables existantes (colonnes de Quotidien, connexion Google / Apple) avant d'accepter des requêtes
 query(QUOTIDIEN_MIGRATION)
   .catch((e) => console.error('Migration Quotidien impossible :', e.message))
+  .then(() => query(SOCIAL_MIGRATION))
+  .catch((e) => console.error('Migration connexion Google / Apple impossible :', e.message))
   .finally(() => app.listen(port, () => console.log(`API Kapi Consult sur http://localhost:${port}`)));
