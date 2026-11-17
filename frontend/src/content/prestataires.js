@@ -54,3 +54,11 @@ export const ANNUAIRE = {
   ctaTitle: 'Vous êtes un professionnel ?',
   ctaText: 'Inscrivez-vous gratuitement dans l’annuaire Kapi Consult et faites-vous connaître des clients de votre zone.',
 };
+
+// Justificatif de qualification demandé aux prestataires (diplôme, attestation…)
+export const QUALIF_TYPES = [
+  ['diplome', 'Diplôme (CAP, BT, BEP, BTS, licence…)'],
+  ['attestation', 'Attestation de formation ou de fin d’apprentissage'],
+  ['certificat', 'Certificat ou agrément professionnel'],
+];
+export const QUALIF_LABEL = { diplome: 'Diplôme', attestation: 'Attestation de formation', certificat: 'Certificat professionnel' };

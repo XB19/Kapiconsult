@@ -1,12 +1,13 @@
 // Administration de l'annuaire : validation des prestataires et modération des avis
 import { useEffect, useMemo, useState } from 'react';
 import {
-  AlertTriangle, BadgeCheck, Check, ExternalLink, Eye, EyeOff, FileText, IdCard, Inbox, Loader2, Mail, MapPin, MessageCircle, Phone, ShieldCheck, Trash2, X,
+  AlertTriangle, BadgeCheck, Check, ExternalLink, Eye, EyeOff, FileText, GraduationCap, IdCard, Inbox, Loader2, Mail, MapPin, MessageCircle, Phone, ShieldCheck, Trash2, X,
 } from 'lucide-react';
 import { SearchField, norm } from '../components/ui';
 import { BASE } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { ProAvatar, Stars, lieu } from '../components/annuaire';
+import { QUALIF_LABEL } from '../content/prestataires';
 import { Confirm, Drawer, fmtDate, useAdminApi, useAdminList, useToast } from './kit';
 
 const STATUTS = [['en_attente', 'En attente'], ['valide', 'Validé'], ['refuse', 'Refusé'], ['suspendu', 'Suspendu']];
@@ -16,13 +17,16 @@ function Empty({ text }) { return <div className="adm-empty"><Inbox size={34} st
 
 // État de la vérification d'identité d'un profil
 const cniComplete = (p) => !!(p.cni_recto && p.cni_verso);
+const docsComplete = (p) => cniComplete(p) && !!p.qualif_fichier;
 function IdentitePill({ p }) {
+  if (!cniComplete(p) && !p.demo) return <span className="pill pill--ko"><AlertTriangle size={13} />CNI manquante</span>;
+  if (!p.qualif_fichier && !p.demo) return <span className="pill pill--ko"><AlertTriangle size={13} />Diplôme manquant</span>;
   if (p.identite_verifiee_le || (p.verifie && p.statut === 'valide')) return <span className="pill pill--ok"><ShieldCheck size={13} />Vérifiée</span>;
-  if (cniComplete(p)) return <span className="pill pill--soft"><IdCard size={13} />À vérifier</span>;
-  return <span className="pill pill--ko"><AlertTriangle size={13} />CNI manquante</span>;
+  return <span className="pill pill--soft"><IdCard size={13} />À vérifier</span>;
 }
 
-// Image (ou PDF) de la pièce d'identité, chargée avec le jeton administrateur : jamais exposée publiquement
+const CAPTION = { recto: 'Recto', verso: 'Verso', qualif: 'Diplôme / attestation' };
+// Image (ou PDF) d'un document privé (CNI, diplôme), chargée avec le jeton administrateur : jamais exposée publiquement
 function CniView({ id, face, present }) {
   const { token } = useAuth();
   const [doc, setDoc] = useState({ loading: present });
@@ -41,10 +45,10 @@ function CniView({ id, face, present }) {
         {!present && <span className="cni-view__empty"><AlertTriangle size={22} />Non transmis</span>}
         {doc.loading && <Loader2 size={22} className="spin" />}
         {doc.error && <span className="cni-view__empty"><AlertTriangle size={22} />Fichier introuvable</span>}
-        {doc.url && !doc.pdf && <a href={doc.url} target="_blank" rel="noopener noreferrer" title="Agrandir"><img src={doc.url} alt={`CNI ${face}`} /></a>}
+        {doc.url && !doc.pdf && <a href={doc.url} target="_blank" rel="noopener noreferrer" title="Agrandir"><img src={doc.url} alt={CAPTION[face]} /></a>}
         {doc.url && doc.pdf && <a href={doc.url} target="_blank" rel="noopener noreferrer" className="cni-view__empty"><FileText size={26} />Ouvrir le PDF</a>}
       </div>
-      <figcaption>{face === 'recto' ? 'Recto' : 'Verso'}{doc.url && !doc.pdf && ' · cliquer pour agrandir'}</figcaption>
+      <figcaption>{CAPTION[face]}{doc.url && !doc.pdf && ' · cliquer pour agrandir'}</figcaption>
     </figure>
   );
 }
@@ -81,7 +85,7 @@ export function PrestatairesAdmin() {
 
   return (
     <>
-      <div className="adm-page-head"><p>Profils créés par les professionnels. Un profil n’apparaît dans Quotidien qu’après <b>contrôle de la pièce d’identité</b> et validation par un administrateur.</p></div>
+      <div className="adm-page-head"><p>Profils créés par les professionnels. Un profil n’apparaît dans Quotidien qu’après <b>contrôle de la pièce d’identité et du diplôme ou de l’attestation</b> et validation par un administrateur.</p></div>
       <section className="adm-card">
         <div className="adm-toolbar">
           <SearchField value={q} onChange={setQ} placeholder="Nom, métier, ville, téléphone…" />
@@ -94,7 +98,7 @@ export function PrestatairesAdmin() {
         {!loading && !rows.length ? <Empty text="Aucun prestataire pour le moment." /> : (
           <div className="adm-table-wrap">
             <table className="adm-table">
-              <thead><tr><th>Prestataire</th><th>Métier</th><th>Localisation</th><th>Identité</th><th>Inscrit le</th><th>Statut</th><th style={{ textAlign: 'right' }}>Actions</th></tr></thead>
+              <thead><tr><th>Prestataire</th><th>Métier</th><th>Localisation</th><th>Documents</th><th>Inscrit le</th><th>Statut</th><th style={{ textAlign: 'right' }}>Actions</th></tr></thead>
               <tbody>
                 {rows.map((p) => (
                   <tr key={p.id} className={p.statut === 'en_attente' ? 'is-unread' : ''}>
@@ -129,9 +133,9 @@ export function PrestatairesAdmin() {
         <Drawer title="Vérification du prestataire" onClose={() => setView(null)} footer={(
           <>
             {view.statut !== 'valide' && (
-              <button className="btn btn--gold btn--sm" disabled={busy || !checked || (!view.demo && !cniComplete(view))}
-                title={!checked ? 'Cochez d’abord le contrôle de la pièce d’identité' : undefined}
-                onClick={() => patch(view, { statut: 'valide' }, 'Identité vérifiée : profil validé et publié')}><Check size={15} />Valider et publier</button>
+              <button className="btn btn--gold btn--sm" disabled={busy || !checked || (!view.demo && !docsComplete(view))}
+                title={!checked ? 'Cochez d’abord le contrôle des documents' : undefined}
+                onClick={() => patch(view, { statut: 'valide' }, 'Documents vérifiés : profil validé et publié')}><Check size={15} />Valider et publier</button>
             )}
             {view.statut !== 'refuse' && view.statut !== 'valide' && (
               <button className="btn btn--outline btn--sm" disabled={busy} onClick={() => (motif.trim() ? patch(view, { statut: 'refuse', motif }, 'Profil refusé') : toast('Indiquez le motif du refus', 'err'))}><X size={15} />Refuser</button>
@@ -163,23 +167,34 @@ export function PrestatairesAdmin() {
               {view.identite_verifiee_le && <><dt>Vérification</dt><dd>Identité vérifiée le {fmtDate(view.identite_verifiee_le)}{view.verifie_par_nom ? ` par ${view.verifie_par_nom}` : ''}</dd></>}
             </dl>
             {view.demo && <p className="sub" style={{ marginTop: 8 }}>Profil de démonstration : pièces « spécimen » fictives.</p>}
+            <h4 style={{ marginTop: 22 }}><GraduationCap size={17} />Diplôme ou attestation</h4>
+            <div className="verif__docs verif__docs--one">
+              <CniView id={view.id} face="qualif" present={!!view.qualif_fichier} />
+            </div>
+            <dl className="adm-dl">
+              <dt>Type</dt><dd>{QUALIF_LABEL[view.qualif_type] || '—'}</dd>
+              <dt>Intitulé</dt><dd>{view.qualif_intitule || '—'}</dd>
+              <dt>Transmis le</dt><dd>{view.qualif_transmise_le ? fmtDate(view.qualif_transmise_le) : '—'}</dd>
+            </dl>
             {view.statut !== 'valide' && (
               <>
                 <ul className="verif__list">
                   <li>Le nom sur la CNI correspond au titulaire du compte et au nom affiché.</li>
                   <li>Le numéro saisi est identique à celui de la carte.</li>
-                  <li>Le document est lisible, complet (recto et verso) et en cours de validité.</li>
-                  <li>Aucun signe de retouche ou de falsification.</li>
+                  <li>La CNI est lisible, complète (recto et verso) et en cours de validité.</li>
+                  <li>Le diplôme ou l’attestation est au même nom que la CNI.</li>
+                  <li>Il correspond au métier déclaré ({view.metier}) et l’intitulé saisi est exact.</li>
+                  <li>Aucun signe de retouche ou de falsification sur les documents.</li>
                 </ul>
                 <label className="check verif__ok">
-                  <input type="checkbox" checked={checked} disabled={!view.demo && !cniComplete(view)} onChange={(e) => setChecked(e.target.checked)} />
-                  <span>J’ai contrôlé la pièce d’identité et elle est conforme.</span>
+                  <input type="checkbox" checked={checked} disabled={!view.demo && !docsComplete(view)} onChange={(e) => setChecked(e.target.checked)} />
+                  <span>J’ai contrôlé la pièce d’identité et le diplôme ou l’attestation : ils sont conformes.</span>
                 </label>
               </>
             )}
             <label className="verif__motif">
               <span>{view.statut === 'valide' ? 'Motif de suspension (communiqué au prestataire)' : 'Motif en cas de refus (communiqué au prestataire)'}</span>
-              <textarea className="input" rows={2} value={motif} onChange={(e) => setMotif(e.target.value)} placeholder="Ex. CNI illisible, nom différent du profil…" />
+              <textarea className="input" rows={2} value={motif} onChange={(e) => setMotif(e.target.value)} placeholder="Ex. CNI illisible, diplôme sans rapport avec le métier…" />
             </label>
           </section>
           <h4 style={{ margin: '22px 0 10px' }}>Profil</h4>

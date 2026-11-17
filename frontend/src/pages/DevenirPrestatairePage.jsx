@@ -1,22 +1,22 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
-  AlertTriangle, BadgeCheck, Clock3, Eye, FileText, IdCard, ImagePlus, Loader2, LocateFixed, Lock, MapPin, Save, ShieldCheck, Trash2, X,
+  AlertTriangle, BadgeCheck, Clock3, Eye, FileText, GraduationCap, IdCard, ImagePlus, Loader2, LocateFixed, Lock, MapPin, Save, ShieldCheck, Trash2, X,
 } from 'lucide-react';
 import { api } from '../lib/api';
 import { useAuth } from '../lib/auth';
 import { PageBanner } from '../components/ui';
 import { Field, Flash, cls } from '../components/forms';
-import { ANNUAIRE, METIERS, PAYS, RAYONS, VILLES } from '../content/prestataires';
+import { ANNUAIRE, METIERS, PAYS, QUALIF_TYPES, RAYONS, VILLES } from '../content/prestataires';
 
 const STATUTS = {
-  en_attente: ['En attente de vérification', 'pill--soft', 'Notre équipe vérifie votre pièce d’identité et votre profil. Il apparaîtra dans l’annuaire dès sa validation.'],
+  en_attente: ['En attente de vérification', 'pill--soft', 'Notre équipe vérifie votre pièce d’identité, votre diplôme ou attestation et votre profil. Il apparaîtra dans l’annuaire dès sa validation.'],
   valide: ['Profil en ligne', 'pill--ok', 'Votre profil est visible par les clients dans l’annuaire.'],
   refuse: ['Profil non validé', 'pill--ko', 'Votre profil n’a pas été validé. Corrigez-le puis enregistrez-le pour le soumettre à nouveau.'],
   suspendu: ['Profil suspendu', 'pill--ko', 'Votre profil est temporairement masqué. Contactez Kapi Consult pour plus d’informations.'],
 };
-// Choix d'une face de la CNI, avec aperçu (image) ou nom du fichier (PDF)
-function CniPicker({ name, label, sent, error, onPick }) {
+// Choix d'un document privé (face de la CNI, diplôme…), avec aperçu (image) ou nom du fichier (PDF)
+function CniPicker({ name, label, sent, error, onPick, Icon = IdCard }) {
   const [file, setFile] = useState(null);
   const [url, setUrl] = useState(null);
   useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
@@ -29,7 +29,7 @@ function CniPicker({ name, label, sent, error, onPick }) {
   return (
     <div className={`cni-pick ${error ? 'is-invalid' : ''} ${file || sent ? 'has-file' : ''}`}>
       <span className="cni-pick__prev">
-        {url ? <img src={url} alt="" /> : file ? <FileText size={30} /> : sent ? <ShieldCheck size={30} /> : <IdCard size={30} />}
+        {url ? <img src={url} alt="" /> : file ? <FileText size={30} /> : sent ? <ShieldCheck size={30} /> : <Icon size={30} />}
       </span>
       <div className="cni-pick__body">
         <b>{label}<span className="req"> *</span></b>
@@ -85,7 +85,7 @@ export default function DevenirPrestatairePage() {
     fd.set('deplacement', fd.get('deplacement') ? 'true' : 'false');
     if (removePhoto) fd.set('retirer_photo', '1');
     if (!fd.get('photo')?.size) fd.delete('photo');
-    for (const k of ['cni_recto', 'cni_verso']) if (!fd.get(k)?.size) fd.delete(k);
+    for (const k of ['cni_recto', 'cni_verso', 'qualif_fichier']) if (!fd.get(k)?.size) fd.delete(k);
     setSending(true); setErrors({}); setFlash({});
     try {
       const res = await api('/mon-profil-prestataire', { method: 'POST', body: fd, token });
@@ -133,6 +133,7 @@ export default function DevenirPrestatairePage() {
                       <span><Eye size={15} />{p.vues} vue{p.vues > 1 ? 's' : ''} du profil</span>
                       <span><BadgeCheck size={15} />{p.nb_avis} avis{p.note ? ` · ${Number(p.note).toFixed(1)}/5` : ''}</span>
                       <span><IdCard size={15} />{p.identite_verifiee_le ? 'Identité vérifiée' : p.cni_recto_ok && p.cni_verso_ok ? 'CNI transmise, vérification en cours' : 'CNI à transmettre'}</span>
+                      <span><GraduationCap size={15} />{!p.qualif_ok ? 'Diplôme ou attestation à transmettre' : p.verifie ? 'Qualification vérifiée' : 'Diplôme transmis, vérification en cours'}</span>
                     </div>
                   </div>
                   <Link to={`/prestataires/${p.id}`} className="btn btn--outline btn--sm"><Eye size={15} />Voir ma fiche</Link>
@@ -243,15 +244,33 @@ export default function DevenirPrestatairePage() {
                     <CniPicker name="cni_recto" label="Recto de la CNI (face avec photo)" sent={p.cni_recto_ok} error={errors.cni_recto} onPick={(v) => v && setCniChange(true)} />
                     <CniPicker name="cni_verso" label="Verso de la CNI" sent={p.cni_verso_ok} error={errors.cni_verso} onPick={(v) => v && setCniChange(true)} />
                   </div>
+
+                  <div className="form__step"><span>6</span>Qualification professionnelle</div>
+                  <div className="alert alert--info cni-note">
+                    <GraduationCap size={20} />
+                    <span>Transmettez la preuve que vous maîtrisez votre métier : <b>diplôme</b> si vous en avez un, sinon <b>attestation de formation ou de fin d’apprentissage</b>, ou certificat professionnel. Le document n’est <b>jamais publié</b> ; seul son intitulé apparaît sur votre fiche une fois vérifié.</span>
+                  </div>
+                  <div className="form__row">
+                    <Field label="Type de document" name="qualif_type" required error={errors.qualif_type}>
+                      <select id="qualif_type" name="qualif_type" className={c('qualif_type')} required defaultValue={p.qualif_type || ''}>
+                        <option value="">Choisir…</option>
+                        {QUALIF_TYPES.map(([v, l]) => <option key={v} value={v}>{l}</option>)}
+                      </select>
+                    </Field>
+                    <Field label="Intitulé" name="qualif_intitule" required error={errors.qualif_intitule} hint="Tel qu’il figure sur le document">
+                      <input id="qualif_intitule" name="qualif_intitule" className={c('qualif_intitule')} required maxLength={200} defaultValue={p.qualif_intitule || ''} placeholder="Ex. CAP Mécanique automobile" />
+                    </Field>
+                  </div>
+                  <CniPicker name="qualif_fichier" label="Photo ou scan du diplôme / de l’attestation" Icon={GraduationCap} sent={p.qualif_ok} error={errors.qualif_fichier} onPick={(v) => v && setCniChange(true)} />
                   {cniChange && state.profil?.statut === 'valide' && (
-                    <p className="small" style={{ color: 'var(--danger)' }}><AlertTriangle size={14} style={{ verticalAlign: -2 }} /> Remplacer votre pièce d’identité masquera votre profil jusqu’à une nouvelle vérification.</p>
+                    <p className="small" style={{ color: 'var(--danger)' }}><AlertTriangle size={14} style={{ verticalAlign: -2 }} /> Remplacer un document masquera votre profil jusqu’à une nouvelle vérification.</p>
                   )}
 
-                  <div className="form__step"><span>6</span>Engagements</div>
+                  <div className="form__step"><span>7</span>Engagements</div>
                   <div className="engage">
                     <label className="check">
                       <input type="checkbox" name="attestation" value="1" required defaultChecked={!!p.conditions_acceptees_le} />
-                      <span>Je certifie sur l’honneur que les informations fournies sont exactes et que la pièce d’identité transmise est la mienne.</span>
+                      <span>Je certifie sur l’honneur que les informations fournies sont exactes, et que la pièce d’identité et le diplôme ou l’attestation transmis sont authentiques et m’appartiennent.</span>
                     </label>
                     {errors.attestation && <span className="field__error">{errors.attestation}</span>}
                     <label className="check">
@@ -261,7 +280,7 @@ export default function DevenirPrestatairePage() {
                     {errors.accepte_conditions && <span className="field__error">{errors.accepte_conditions}</span>}
                   </div>
 
-                  <p className="small muted"><Clock3 size={14} style={{ verticalAlign: -2 }} /> Votre profil est publié après vérification de votre identité par Kapi Consult. Vos coordonnées sont affichées sur votre fiche pour que les clients puissent vous contacter.</p>
+                  <p className="small muted"><Clock3 size={14} style={{ verticalAlign: -2 }} /> Votre profil est publié après vérification de votre identité et de votre qualification par Kapi Consult. Vos coordonnées sont affichées sur votre fiche pour que les clients puissent vous contacter.</p>
                   <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center' }}>
                     <button type="submit" className="btn btn--gold" disabled={sending}>{sending ? <Loader2 size={17} className="spin" /> : <Save size={17} />}{sending ? 'Enregistrement…' : state.profil ? 'Enregistrer les modifications' : 'Créer mon profil'}</button>
                     {state.profil && (confirmDel

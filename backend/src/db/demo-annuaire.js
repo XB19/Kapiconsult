@@ -28,6 +28,22 @@ function specimen(file, face, nom, numero) {
   fs.writeFileSync(path.join(CNI_DIR, file), svg);
 }
 
+// Attestation de formation fictive (justificatif de qualification des profils de démonstration)
+function specimenQualif(file, nom, intitule) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="842" height="595" viewBox="0 0 842 595">
+  <rect width="842" height="595" fill="#fbf8ef"/><rect x="22" y="22" width="798" height="551" fill="none" stroke="#b08d2f" stroke-width="6"/>
+  <rect x="38" y="38" width="766" height="519" fill="none" stroke="#b08d2f" stroke-width="2"/>
+  <text x="421" y="120" text-anchor="middle" font-family="Georgia" font-size="40" font-weight="bold" fill="#1f2a7a">ATTESTATION DE FORMATION</text>
+  <text x="421" y="175" text-anchor="middle" font-family="Arial" font-size="20" fill="#5b6185">Centre de formation fictif — document de démonstration</text>
+  <text x="421" y="250" text-anchor="middle" font-family="Arial" font-size="22" fill="#5b6185">Décernée à</text>
+  <text x="421" y="300" text-anchor="middle" font-family="Georgia" font-size="36" font-weight="bold" fill="#1d2140">${esc(nom)}</text>
+  <text x="421" y="360" text-anchor="middle" font-family="Arial" font-size="22" fill="#5b6185">pour avoir suivi avec succès la formation</text>
+  <text x="421" y="405" text-anchor="middle" font-family="Arial" font-size="26" font-weight="bold" fill="#1d2140">${esc(intitule)}</text>
+  <text x="421" y="520" text-anchor="middle" font-family="Arial" font-size="58" font-weight="bold" fill="#c0392b" opacity="0.8" transform="rotate(-10 421 480)">SPÉCIMEN — SANS VALEUR</text>
+</svg>`;
+  fs.writeFileSync(path.join(CNI_DIR, file), svg);
+}
+
 // Quartiers et villes avec leurs coordonnées approximatives
 const L = {
   agoe: ['Lomé', 'Agoè Assiyéyé', 6.2312, 1.2063], be: ['Lomé', 'Bè Kpota', 6.1395, 1.2378], tokoin: ['Lomé', 'Tokoin Hôpital', 6.1528, 1.2148],
@@ -136,14 +152,17 @@ async function main() {
       const { rows } = await db.query(
         `INSERT INTO prestataires (nom_affiche, metier, specialites, description, experience, telephone, whatsapp, email, pays, ville, quartier,
           latitude, longitude, rayon_km, deplacement, disponibilite, tarif, statut, verifie, vues, demo, created_at,
-          cni_numero, cni_recto, cni_verso, cni_transmise_le, identite_verifiee_le, conditions_acceptees_le)
+          cni_numero, cni_recto, cni_verso, cni_transmise_le, identite_verifiee_le, conditions_acceptees_le,
+          qualif_type, qualif_intitule, qualif_fichier, qualif_transmise_le)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,'Togo',$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,true,$20,
-          $21,$22,$23,$20,$24,$20) RETURNING id`,
+          $21,$22,$23,$20,$24,$20,'attestation',$25,$26,$20) RETURNING id`,
         [nom, metier, spec.split(',').map((s) => s.trim()), desc, exp, tel(i), rnd() > 0.25 ? tel(i) : null,
           rnd() > 0.5 ? `contact${i + 1}${DOMAINE}` : null, ville, quartier, lat + jitter(), lng + jitter(), rayon, deplacement, dispo, null /* tarifs non affichés : négociés selon la tâche */,
           statut, verifie, Math.floor(rnd() * 400) + 15, created,
-          numero, `demo-${i + 1}-recto.svg`, `demo-${i + 1}-verso.svg`, verifie ? created : null],
+          numero, `demo-${i + 1}-recto.svg`, `demo-${i + 1}-verso.svg`, verifie ? created : null,
+          `Formation professionnelle — ${metier}`, `demo-${i + 1}-qualif.svg`],
       );
+      specimenQualif(`demo-${i + 1}-qualif.svg`, nom, `Formation professionnelle — ${metier}`);
       specimen(`demo-${i + 1}-recto.svg`, 'recto', nom, numero);
       specimen(`demo-${i + 1}-verso.svg`, 'verso', nom, numero);
       if (statut !== 'valide') continue;

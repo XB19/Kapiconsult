@@ -2,14 +2,14 @@
 // Toute modification de fond doit s'accompagner d'un changement de CONDITIONS_VERSION (backend/src/prestataires.js)
 // pour que chaque membre accepte de nouveau les conditions.
 
-export const CONDITIONS_MAJ = '16 novembre 2026';
+export const CONDITIONS_MAJ = '17 novembre 2026';
 
 // Résumé affiché avant l'accès et sur les pages de l'annuaire
 export const POINTS_CLES = [
   'Kapi Consult met seulement en relation des clients et des prestataires indépendants : nous ne sommes partie à aucun accord conclu entre eux.',
   'Les prestations, les prix, les délais, les paiements et la qualité du travail relèvent exclusivement du client et du prestataire.',
   'Kapi Consult n’est pas responsable de ce qui se passe en dehors de la plateforme : rencontres, travaux, paiements, dommages, pertes, vols ou litiges.',
-  'La vérification d’identité d’un prestataire confirme sa pièce d’identité, pas ses compétences, ses qualifications ni son honnêteté.',
+  'Chaque prestataire publié a transmis sa pièce d’identité et un diplôme ou une attestation de formation, contrôlés par Kapi Consult. Ce contrôle ne garantit pas pour autant la qualité de son travail ni son honnêteté.',
   'Chacun reste prudent : demandez un devis écrit, ne payez jamais tout à l’avance et signalez tout comportement suspect.',
 ];
 
@@ -46,15 +46,15 @@ export const CONDITIONS = [
   {
     titre: 'Vérification des prestataires et ses limites',
     texte: [
-      'Pour être publié, chaque Prestataire doit transmettre le recto et le verso de sa carte nationale d’identité (CNI). Un administrateur de Kapi Consult contrôle la cohérence de cette pièce avec le profil avant toute mise en ligne.',
-      'Ce contrôle porte uniquement sur l’identité déclarée. Il ne constitue ni une garantie, ni une certification des compétences, des diplômes, des autorisations professionnelles, de la solvabilité ou de l’honnêteté du Prestataire. Le badge « Identité vérifiée » ne peut être interprété autrement.',
+      'Pour être publié, chaque Prestataire doit transmettre le recto et le verso de sa carte nationale d’identité (CNI) ainsi qu’un justificatif de qualification dans son métier : diplôme, attestation de formation ou de fin d’apprentissage, ou certificat professionnel. Un administrateur de Kapi Consult contrôle la cohérence de ces documents avec le profil avant toute mise en ligne.',
+      'Ce contrôle est documentaire : il vérifie que les pièces transmises sont lisibles, au nom du Prestataire et en rapport avec le métier déclaré. Kapi Consult n’authentifie pas les diplômes auprès des établissements qui les ont délivrés. Ce contrôle ne constitue ni une garantie de la qualité des prestations, ni une certification des autorisations professionnelles, de la solvabilité ou de l’honnêteté du Prestataire. Les mentions « Identité vérifiée » et « Diplôme / attestation vérifié(e) » ne peuvent être interprétées autrement.',
       'Kapi Consult peut à tout moment refuser, suspendre ou supprimer un profil, notamment en cas de document douteux, de signalement ou de non-respect des présentes conditions.',
     ],
   },
   {
     titre: 'Engagements du Prestataire',
     liste: [
-      'fournir des informations exactes, à jour et une pièce d’identité authentique qui lui appartient ;',
+      'fournir des informations exactes, à jour, une pièce d’identité et un diplôme ou une attestation authentiques qui lui appartiennent ;',
       'exercer son activité dans le respect des lois et règlements en vigueur (déclarations, autorisations, fiscalité, assurances le cas échéant) ;',
       'convenir du prix avec le Client avant toute intervention, de préférence par un devis écrit, et respecter ses engagements ;',
       'ne pas usurper l’identité d’un tiers ni publier de contenu trompeur, offensant ou illicite.',
@@ -77,9 +77,9 @@ export const CONDITIONS = [
     ],
   },
   {
-    titre: 'Données personnelles et pièce d’identité',
+    titre: 'Données personnelles, pièce d’identité et diplômes',
     texte: [
-      'Les copies de pièces d’identité sont utilisées uniquement pour vérifier l’identité des Prestataires. Elles ne sont jamais publiées, sont conservées dans un espace non accessible au public et ne sont consultables que par les administrateurs de Kapi Consult.',
+      'Les copies de pièces d’identité, de diplômes et d’attestations sont utilisées uniquement pour vérifier les Prestataires. Elles ne sont jamais publiées (seul l’intitulé du diplôme ou de l’attestation apparaît sur la fiche), sont conservées dans un espace non accessible au public et ne sont consultables que par les administrateurs de Kapi Consult.',
       'Elles sont supprimées en même temps que le profil du Prestataire. Chaque membre peut demander l’accès, la rectification ou la suppression de ses données en écrivant à info@kapiconsult.tg.',
       'Les coordonnées professionnelles affichées sur un profil (téléphone, WhatsApp, e-mail) sont publiées à la demande du Prestataire afin d’être contacté.',
     ],

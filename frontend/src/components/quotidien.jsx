@@ -46,8 +46,8 @@ function AccesMembres({ next, pro }) {
             <div className={`box gate-card ${pro ? 'is-main' : ''}`}>
               <span className="gate-card__ico"><Wrench size={26} /></span>
               <h2>Je suis prestataire</h2>
-              <p>Créez votre compte, puis votre fiche professionnelle. Votre profil sera publié après vérification de votre identité.</p>
-              <p className="gate-card__need"><IdCard size={16} /><span>Prévoyez une photo du <b>recto et du verso de votre CNI</b>.</span></p>
+              <p>Créez votre compte, puis votre fiche professionnelle. Votre profil sera publié après vérification de votre identité et de votre qualification.</p>
+              <p className="gate-card__need"><IdCard size={16} /><span>Prévoyez une photo du <b>recto et du verso de votre CNI</b> et de votre <b>diplôme ou attestation de formation</b>.</span></p>
               <Link to={`/inscription?next=${n('/prestataires/inscription')}`} className="btn btn--block"><UserPlus size={17} />Créer un compte prestataire</Link>
             </div>
           </div>

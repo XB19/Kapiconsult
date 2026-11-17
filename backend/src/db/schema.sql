@@ -125,6 +125,10 @@ CREATE TABLE IF NOT EXISTS prestataires (
   cni_recto    VARCHAR(255),
   cni_verso    VARCHAR(255),
   cni_transmise_le     TIMESTAMPTZ,
+  qualif_type     VARCHAR(20),   -- diplome | attestation | certificat
+  qualif_intitule VARCHAR(200),
+  qualif_fichier  VARCHAR(255),  -- stocké avec les pièces d'identité (dossier privé)
+  qualif_transmise_le  TIMESTAMPTZ,
   identite_verifiee_le TIMESTAMPTZ,
   verifie_par  INTEGER REFERENCES users(id) ON DELETE SET NULL,
   motif_refus  TEXT,

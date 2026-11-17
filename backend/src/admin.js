@@ -230,9 +230,9 @@ export function adminRouter({ UPLOADS }) {
   router.delete('/users/:id', wrap(async (req, res) => {
     if (Number(req.params.id) === req.admin.id) return res.status(422).json({ message: 'Vous ne pouvez pas supprimer votre propre compte.' });
     // Supprime aussi les pièces d'identité d'un éventuel profil prestataire
-    const cni = (await query('SELECT cni_recto, cni_verso FROM prestataires WHERE user_id=$1', [req.params.id])).rows[0];
+    const cni = (await query('SELECT cni_recto, cni_verso, qualif_fichier FROM prestataires WHERE user_id=$1', [req.params.id])).rows[0];
     await query('DELETE FROM users WHERE id=$1', [req.params.id]);
-    removeCni(UPLOADS, cni?.cni_recto); removeCni(UPLOADS, cni?.cni_verso);
+    removeCni(UPLOADS, cni?.cni_recto); removeCni(UPLOADS, cni?.cni_verso); removeCni(UPLOADS, cni?.qualif_fichier);
     res.status(204).end();
   }));
 
@@ -247,16 +247,19 @@ export function adminRouter({ UPLOADS }) {
       ORDER BY (p.statut = 'en_attente') DESC, p.created_at DESC`)).rows);
   }));
   router.patch('/prestataires/:id', wrap(async (req, res) => {
-    const cur = (await query('SELECT id, statut, demo, cni_recto, cni_verso FROM prestataires WHERE id=$1', [req.params.id])).rows[0];
+    const cur = (await query('SELECT id, statut, demo, cni_recto, cni_verso, qualif_fichier FROM prestataires WHERE id=$1', [req.params.id])).rows[0];
     if (!cur) return res.status(404).json({ message: 'Prestataire introuvable.' });
     const sets = []; const params = [];
     const set = (col, v) => { params.push(v); sets.push(`${col}=$${params.length}`); };
     const { statut, motif } = req.body || {};
     if (statut !== undefined) {
       if (!PRESTA_STATUTS.includes(statut)) return res.status(422).json({ message: 'Statut invalide.' });
-      // Aucune mise en ligne sans pièce d'identité complète (sauf profils de démonstration)
+      // Aucune mise en ligne sans pièce d'identité complète ni justificatif de qualification (sauf profils de démonstration)
       if (statut === 'valide' && !cur.demo && !(cur.cni_recto && cur.cni_verso)) {
         return res.status(422).json({ message: 'Impossible de valider : la pièce d’identité (recto et verso) est manquante.' });
+      }
+      if (statut === 'valide' && !cur.demo && !cur.qualif_fichier) {
+        return res.status(422).json({ message: 'Impossible de valider : le diplôme ou l’attestation est manquant.' });
       }
       if (statut === 'refuse' && !String(motif || '').trim()) return res.status(422).json({ message: 'Indiquez le motif du refus.' });
       set('statut', statut);
@@ -269,6 +272,7 @@ export function adminRouter({ UPLOADS }) {
     }
     if (req.body?.verifie !== undefined) {
       if (req.body.verifie && !cur.demo && !(cur.cni_recto && cur.cni_verso)) return res.status(422).json({ message: 'Pièce d’identité manquante.' });
+      if (req.body.verifie && !cur.demo && !cur.qualif_fichier) return res.status(422).json({ message: 'Diplôme ou attestation manquant.' });
       set('verifie', !!req.body.verifie);
       if (req.body.verifie) { sets.push('identite_verifiee_le=now()'); set('verifie_par', req.admin.id); } else sets.push('identite_verifiee_le=NULL');
     }
@@ -278,9 +282,10 @@ export function adminRouter({ UPLOADS }) {
       RETURNING id, statut, verifie, identite_verifiee_le, motif_refus, verifie_par`, params);
     res.json({ ...rows[0], verifie_par_nom: rows[0].verifie_par ? `${req.admin.prenom} ${req.admin.nom}` : null });
   }));
-  // Pièce d'identité d'un prestataire (recto / verso) : consultable uniquement par un administrateur
+  // Documents privés d'un prestataire (CNI recto / verso, diplôme ou attestation) : consultables uniquement par un administrateur
   router.get('/prestataires/:id/cni/:face', wrap(async (req, res) => {
-    const col = req.params.face === 'verso' ? 'cni_verso' : 'cni_recto';
+    const col = { recto: 'cni_recto', verso: 'cni_verso', qualif: 'qualif_fichier' }[req.params.face];
+    if (!col) return res.status(404).json({ message: 'Fichier introuvable.' });
     const { rows } = await query(`SELECT ${col} AS f FROM prestataires WHERE id=$1`, [req.params.id]);
     const f = rows[0]?.f && path.join(cniDir(UPLOADS), path.basename(rows[0].f));
     if (!f || !fs.existsSync(f)) return res.status(404).json({ message: 'Fichier introuvable.' });
@@ -288,9 +293,9 @@ export function adminRouter({ UPLOADS }) {
     res.sendFile(f);
   }));
   router.delete('/prestataires/:id', wrap(async (req, res) => {
-    const { rows } = await query('DELETE FROM prestataires WHERE id=$1 RETURNING photo, cni_recto, cni_verso', [req.params.id]);
+    const { rows } = await query('DELETE FROM prestataires WHERE id=$1 RETURNING photo, cni_recto, cni_verso, qualif_fichier', [req.params.id]);
     const photo = rows[0]?.photo;
-    removeCni(UPLOADS, rows[0]?.cni_recto); removeCni(UPLOADS, rows[0]?.cni_verso);
+    removeCni(UPLOADS, rows[0]?.cni_recto); removeCni(UPLOADS, rows[0]?.cni_verso); removeCni(UPLOADS, rows[0]?.qualif_fichier);
     if (photo?.startsWith('/uploads/prestataires/')) fs.rm(path.join(UPLOADS, 'prestataires', path.basename(photo)), { force: true }, () => {});
     res.status(204).end();
   }));

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
-  ArrowLeft, BadgeCheck, Briefcase, CalendarClock, ChevronRight, Clock3, Mail, MapPin, MessageCircle, Navigation, Pencil, Phone, Route,
+  ArrowLeft, BadgeCheck, Briefcase, CalendarClock, ChevronRight, Clock3, GraduationCap, Mail, MapPin, MessageCircle, Navigation, Pencil, Phone, Route,
   Send, Star, Wallet,
 } from 'lucide-react';
 import { api } from '../lib/api';
@@ -10,6 +10,7 @@ import { dateFr } from '../lib/format';
 import { Empty, Reveal } from '../components/ui';
 import { Flash } from '../components/forms';
 import { ProAvatar, Rating, Stars, lieu } from '../components/annuaire';
+import { QUALIF_LABEL } from '../content/prestataires';
 import { MiseEnRelation } from '../components/quotidien';
 
 const digits = (t) => String(t || '').replace(/[^\d+]/g, '');
@@ -125,6 +126,7 @@ export default function PrestatairePage() {
                   <span><MapPin size={16} />{lieu(p)}{p.pays ? ` — ${p.pays}` : ''}</span>
                   {p.experience > 0 && <span><Clock3 size={16} />{p.experience} an{p.experience > 1 ? 's' : ''} d'expérience</span>}
                   {p.verifie && <span className="pro-dist"><BadgeCheck size={16} />Identité vérifiée par Kapi Consult</span>}
+                  {p.qualif_verifiee && <span className="pro-dist"><GraduationCap size={16} />{QUALIF_LABEL[p.qualif_type] || 'Qualification'} vérifié{p.qualif_type === 'attestation' ? 'e' : ''} : {p.qualif_intitule}</span>}
                 </div>
               </div>
             </Reveal>
